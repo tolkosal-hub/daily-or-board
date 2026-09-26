@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operating Room Board</title>
+    <style>
+        body {
+            font-family: 'Khmer OS Siem Reap', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.25;
+            margin: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 10px; 
+        }
+        .header h1 {
+            font-size: 26px;
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+        .header h2 {
+            font-size: 18px;
+            margin: 5px 0;
+            font-weight: normal;
+            color: #555;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between; 
+            align-items: center;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .left-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .right-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .controls label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .controls input[type="date"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Khmer OS Siem Reap', 'Segoe UI', sans-serif;
+        }
+        .user-info {
+            font-size: 14px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        .print-btn, .signout-btn {
+            background-color: #34495e;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Khmer OS Siem Reap', 'Segoe UI', sans-serif;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .print-btn:hover, .signout-btn:hover {
+            background-color: #2c3e50;
+        }
+        .signout-btn {
+            background-color: #e74c3c;
+        }
+        .signout-btn:hover {
+            background-color: #c0392b;
+        }
+        .loading {
+            font-style: italic;
+            color: #3498db;
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 13px;
+            vertical-align: middle; 
+            text-align: center;     
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        td {
+            white-space: nowrap; 
+        }
+        td:nth-child(8), td:nth-child(9) {
+            white-space: normal; 
+        }
+        .area-header {
+            background-color: #bdc3c7;
+            color: #2c3e50;
+            font-weight: bold;
+            text-align: center;
+            font-size: 15px;
+            letter-spacing: 1px;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            width: 100%;
+            min-width: 110px; 
+            transition: background-color 0.3s;
+            font-family: 'Khmer OS Siem Reap', 'Segoe UI', sans-serif;
+            font-size: 12px;
+            text-align: center;
+        }
+        .status-finished {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .status-pending {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        .no-data {
+            text-align: center;
+            padding: 15px;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        /* ----- Print Specific Styles ----- */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 5mm;
+            }
+            body {
+                background: #fff;
+            }
+            body * {
+                visibility: hidden; 
+            }
+            #printArea, #printArea * {
+                visibility: visible; 
+            }
+            #printArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .header {
+                margin-bottom: 10px;
+            }
+            .header h1 {
+                font-size: 20px;
+                margin: 5px 0;
+            }
+            .header h2 {
+                font-size: 14px;
+                margin: 3px 0;
+            }
+            th, td {
+                padding: 6px 4px;
+                font-size: 11px;
+                color: #000;
+                border: 1px solid #000;
+                vertical-align: middle;
+                text-align: center;
+            }
+            th {
+                background-color: #e0e0e0 !important;
+                color: #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            select {
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                border: none;
+                background: transparent;
+                padding: 0;
+                font-size: 11px;
+                color: #000;
+                width: auto;
+                min-width: auto;
+                text-align: center;
+            }
+            .area-header {
+                background-color: #f0f0f0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                font-size: 13px;
+                padding: 6px;
+            }
+            table {
+                width: 100%;
+                border: 1px solid #000;
+                page-break-inside: auto;
+            }
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+        }
+    </style>
+
+    <!-- Firebase App & Auth SDKs for Protection -->
+    <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCoZ_MhbbZ9RJKT8CFVMLa2IiXiFU79jb4",
+            authDomain: "operating-room-board.firebaseapp.com",
+            projectId: "operating-room-board",
+            storageBucket: "operating-room-board.firebasestorage.app",
+            messagingSenderId: "856407340960",
+            appId: "1:856407340960:web:f1671c47de85b72044d6c5"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+
+        let currentUserEmail = "";
+
+        // Enforce session persistence per browser instance
+        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+            .then(() => {
+                // Security Guard & Custom User Display Mapping
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (!user) {
+                        window.location.href = 'index.html';
+                    } else {
+                        currentUserEmail = user.email ? user.email.trim().toLowerCase() : "";
+                        const userDisplay = document.getElementById('userDisplay');
+                        
+                        if (userDisplay && user.email) {
+                            let displayName = "";
+
+                            if (currentUserEmail === "maodara@gmail.com") {
+                                displayName = "ម៉ៅ តារា";
+                            } else if (currentUserEmail === "pichphirum@gmail.com") {
+                                displayName = "ពេជ្រ ភីរម្យ";
+                            } else {
+                                let rawName = user.email.split('@')[0];
+                                displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+                            }
+
+                            userDisplay.textContent = displayName;
+                        }
+                        
+                        if (typeof renderTable === 'function' && dateFilter.value) {
+                            renderTable(dateFilter.value);
+                        }
+                    }
+                });
+            })
+            .catch((error) => {
+                console.error("Auth persistence error:", error);
+                window.location.href = 'index.html';
+            });
+
+        function signOutUser() {
+            firebase.auth().signOut().then(() => {
+                window.location.href = 'index.html';
+            }).catch((error) => {
+                console.error('Sign out error', error);
+            });
+        }
+    </script>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="left-controls">
+            <label for="dateFilter">Select Date:</label>
+            <input type="date" id="dateFilter">
+            <span id="loadingIndicator" class="loading">Fetching live data...</span>
+        </div>
+        <div class="right-controls">
+            <span class="user-info">Logged in as: <strong id="userDisplay">Loading...</strong></span>
+            <button class="print-btn" onclick="window.print()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                Print Schedule
+            </button>
+            <button class="signout-btn" onclick="signOutUser()">Sign Out</button>
+        </div>
+    </div>
+    
+    <div id="errorMessage" class="error-message"></div>
+
+    <div id="printArea">
+        <div class="header">
+            <h2>មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង</h2>
+            <h2>ផ្នែក សល្យាគារ</h2>
+            <h1>កម្មវិធីវះកាត់ប្រចាំថ្ងៃ (Daily Operating Room Schedule)</h1>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table id="orTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Patient ID</th>
+                        <th>Patient Name</th>
+                        <th>Age</th>
+                        <th>Sex</th>
+                        <th>Room/Bed</th>
+                        <th style="min-width: 120px;">Diagnosis</th>
+                        <th style="min-width: 150px;">Procedure</th>
+                        <th>Surgeon</th>
+                        <th>Assistant</th>
+                        <th>Special Instruments</th>
+                        <th>Remark</th>
+                        <th style="min-width: 120px;">Anesthetic Team</th>
+                        <th style="min-width: 120px;">OR Nurse</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const dateFilter = document.getElementById('dateFilter');
+        const tableBody = document.getElementById('tableBody');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        let scheduleData = [];
+        const areas = ['OTS1', 'OTS2', 'OTS3'];
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrk6OuH81kLg4H0CA8j2mXxvYk3C1Ag-nLO09VUvM0BteaU5spvNRDtzTpDtXYkzo/exec';
+
+        const allowedEditors = [
+            "admin@gmail.com",
+            "maodara@gmail.com",
+            "pichphirum@gmail.com",
+            "phavphal@gmail.com",
+            "voeunkong@gmail.com"
+        ];
+
+        function isUserAllowedToEdit() {
+            return allowedEditors.includes(currentUserEmail);
+        }
+
+        function setDateToToday() {
+            const localToday = new Date();
+            const yyyy = localToday.getFullYear();
+            const mm = String(localToday.getMonth() + 1).padStart(2, '0');
+            const dd = String(localToday.getDate()).padStart(2, '0');
+            dateFilter.value = `${yyyy}-${mm}-${dd}`;
+        }
+        
+        setDateToToday();
+
+        const formatDataDate = (raw) => {
+            if (!raw) return '';
+            let s = String(raw);
+            if (s.includes('T')) {
+                try {
+                    let d = new Date(s);
+                    let formatter = new Intl.DateTimeFormat('en-US', {
+                        timeZone: 'Asia/Phnom_Penh',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                    let parts = formatter.formatToParts(d);
+                    let y = parts.find(p => p.type === 'year').value;
+                    let m = parts.find(p => p.type === 'month').value;
+                    let dNum = parts.find(p => p.type === 'day').value;
+                    return `${y}-${m}-${dNum}`;
+                } catch(e) {
+                    return s.substring(0, 10);
+                }
+            }
+            return s.substring(0, 10);
+        };
+
+        function isPastResetTime(rowDateStr) {
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Asia/Phnom_Penh',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            const parts = formatter.formatToParts(now);
+            const currentY = parts.find(p => p.type === 'year').value;
+            const currentM = parts.find(p => p.type === 'month').value;
+            const currentD = parts.find(p => p.type === 'day').value;
+            const currentHour = parseInt(parts.find(p => p.type === 'hour').value, 10);
+            
+            const todayStr = `${currentY}-${currentM}-${currentD}`;
+
+            return (rowDateStr <= todayStr && currentHour >= 18);
+        }
+
+        function fetchSheetData() {
+            loadingIndicator.style.display = 'inline';
+            errorMessage.style.display = 'none';
+
+            fetch(APPS_SCRIPT_URL)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    let rows = Array.isArray(data) ? data : (data.data || data.records || []);
+                    
+                    scheduleData = rows.map((row, index) => {
+                        const _id = 'row_' + index;
+                        let rowDate = '';
+                        let anest = '';
+                        let nurse = '';
+
+                        if (Array.isArray(row)) {
+                             rowDate = formatDataDate(row[1]);
+                             anest = String(row[15] || '');
+                             nurse = String(row[16] || '');
+                        } else {
+                             rowDate = formatDataDate(row['Date'] || row['date']);
+                             anest = String(row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || '');
+                             nurse = String(row['OR Nurse'] || row['orNurse'] || row['or_nurse'] || '');
+                        }
+
+                        if (isPastResetTime(rowDate) && (anest !== '' || nurse !== '')) {
+                            anest = '';
+                            nurse = '';
+                        }
+
+                        if (Array.isArray(row)) {
+                             return {
+                                _id: _id,
+                                backendId: String(row[0] || ''),
+                                date: rowDate, 
+                                area: String(row[2] || ''),
+                                time: String(row[3] || ''),
+                                patientId: String(row[4] || ''),
+                                patientName: String(row[5] || ''),
+                                age: String(row[6] || ''),
+                                sex: String(row[7] || ''),
+                                roomBed: String(row[8] || ''),
+                                diagnosis: String(row[9] || ''),
+                                procedure: String(row[10] || ''),
+                                surgeon: String(row[11] || ''),
+                                assistant: String(row[12] || ''),
+                                specialInstruments: String(row[13] || ''),
+                                remark: String(row[14] || ''),
+                                anestheticTeam: anest,
+                                orNurse: nurse,
+                                status: String(row[17] || '')
+                             };
+                        } else {
+                             return {
+                                _id: _id,
+                                backendId: String(row['Backend ID'] || row['backend_id'] || row['backendId'] || ''),
+                                date: rowDate,
+                                area: String(row['Area'] || row['area'] || ''),
+                                time: String(row['Time'] || row['time'] || ''),
+                                patientId: String(row['Patient ID'] || row['patientId'] || row['patient_id'] || ''),
+                                patientName: String(row['Patient Name'] || row['patientName'] || row['patient_name'] || ''),
+                                age: String(row['Age'] || row['age'] || ''),
+                                sex: String(row['Sex'] || row['sex'] || ''),
+                                roomBed: String(row['Room/Bed'] || row['roomBed'] || row['room_bed'] || ''),
+                                diagnosis: String(row['Diagnosis'] || row['diagnosis'] || ''),
+                                procedure: String(row['Procedure'] || row['procedure'] || ''),
+                                surgeon: String(row['Surgeon'] || row['surgeon'] || ''),
+                                assistant: String(row['Assistant'] || row['assistant'] || ''),
+                                specialInstruments: String(row['Special Instruments'] || row['specialInstruments'] || row['special_instruments'] || ''),
+                                remark: String(row['Remark'] || row['remark'] || ''),
+                                anestheticTeam: anest,
+                                orNurse: nurse,
+                                status: String(row['Status'] || row['status'] || '')
+                            };
+                        }
+                    });
+
+                    loadingIndicator.style.display = 'none';
+                    renderTable(dateFilter.value);
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    loadingIndicator.style.display = 'none';
+                    errorMessage.style.display = 'block';
+                    errorMessage.innerHTML = `<strong>Error connecting to Google Apps Script.</strong> Details: ${error.message} - Ensure your Web App is deployed as "Anyone" can access.`;
+                });
+        }
+
+        function updateDropdown(rowId, fieldKey, newValue, selectElement) {
+            if (!isUserAllowedToEdit()) {
+                alert('You do not have permission to modify staff assignments.');
+                return;
+            }
+
+            const row = scheduleData.find(r => r._id === rowId);
+            if (!row) return;
+
+            if (isPastResetTime(row.date)) {
+                alert('Assignments cannot be modified after 18:00 daily.');
+                selectElement.value = row[fieldKey]; 
+                return;
+            }
+
+            row[fieldKey] = newValue;
+
+            const originalBg = selectElement.style.backgroundColor;
+            selectElement.style.backgroundColor = '#e8f4fd'; 
+
+            const payload = {
+                __backendId: row.backendId,
+                date: row.date,
+                operating_area: row.area,
+                time: row.time,
+                patient_id: row.patientId,
+                patient_name: row.patientName,
+                age: row.age,
+                sex: row.sex,
+                room_bed: row.roomBed,
+                diagnosis: row.diagnosis,
+                procedure: row.procedure,
+                surgeon: row.surgeon,
+                assistant: row.assistant,
+                special_instruments: row.specialInstruments,
+                remark: row.remark,
+                anesthetic_team: row.anestheticTeam,
+                or_nurse: row.orNurse,
+                status: row.status
+            };
+
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    selectElement.style.backgroundColor = '#d4edda'; 
+                    setTimeout(() => selectElement.style.backgroundColor = originalBg, 2000);
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .catch(err => {
+                console.error('Save failed:', err);
+                alert('Failed to save assignment. Please check connection.');
+                selectElement.style.backgroundColor = '#f8d7da'; 
+            });
+        }
+
+        function renderTable(selectedDate) {
+            tableBody.innerHTML = ''; 
+            
+            const filteredData = scheduleData.filter(row => row.date === selectedDate);
+            const isLocked = isPastResetTime(selectedDate) || !isUserAllowedToEdit();
+
+            areas.forEach(area => {
+                const headerRow = document.createElement('tr');
+                headerRow.innerHTML = `<td colspan="16" class="area-header">${area}</td>`;
+                tableBody.appendChild(headerRow);
+
+                let areaData = filteredData.filter(row => row.area === area);
+
+                if (areaData.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `<td colspan="16" class="no-data">No surgeries scheduled in ${area}.</td>`;
+                    tableBody.appendChild(emptyRow);
+                } else {
+                    areaData.sort((a, b) => {
+                        return a.time.localeCompare(b.time);
+                    });
+
+                    areaData.forEach(row => {
+                        const tr = document.createElement('tr');
+                        
+                        let statusClass = '';
+                        const statusVal = row.status.trim().toLowerCase();
+                        if(statusVal === 'finished') statusClass = 'status-finished';
+                        if(statusVal === 'pending') statusClass = 'status-pending';
+
+                        const disabledAttr = isLocked ? 'disabled title="Restricted or locked after 18:00"' : '';
+
+                        const anestHtml = `
+                            <select ${disabledAttr} onchange="updateDropdown('${row._id}', 'anestheticTeam', this.value, this)">
+                                <option value="">Select Team</option>
+                                <option value="Team A" ${row.anestheticTeam === 'Team A' ? 'selected' : ''}>Team A</option>
+                                <option value="Team B" ${row.anestheticTeam === 'Team B' ? 'selected' : ''}>Team B</option>
+                                <option value="Team C" ${row.anestheticTeam === 'Team C' ? 'selected' : ''}>Team C</option>
+                            </select>
+                        `;
+
+                        const nurseHtml = `
+                            <select ${disabledAttr} onchange="updateDropdown('${row._id}', 'orNurse', this.value, this)">
+                                <option value="">Select Team</option>
+                                <option value="Team A" ${row.orNurse === 'Team A' ? 'selected' : ''}>Team A</option>
+                                <option value="Team B" ${row.orNurse === 'Team B' ? 'selected' : ''}>Team B</option>
+                                <option value="Team C" ${row.orNurse === 'Team C' ? 'selected' : ''}>Team C</option>
+                            </select>
+                        `;
+
+                        tr.innerHTML = `
+                            <td>${row.date}</td>
+                            <td>${row.time}</td>
+                            <td>${row.patientId}</td>
+                            <td>${row.patientName}</td>
+                            <td>${row.age}</td>
+                            <td>${row.sex}</td>
+                            <td>${row.roomBed}</td>
+                            <td>${row.diagnosis}</td>
+                            <td>${row.procedure}</td>
+                            <td>${row.surgeon}</td>
+                            <td>${row.assistant}</td>
+                            <td>${row.specialInstruments}</td>
+                            <td>${row.remark}</td>
+                            <td>${anestHtml}</td>
+                            <td>${nurseHtml}</td>
+                            <td class="${statusClass}">${row.status}</td>
+                        `;
+                        tableBody.appendChild(tr);
+                    });
+                }
+            });
+        }
+
+        dateFilter.addEventListener('change', (e) => {
+            renderTable(e.target.value);
+        });
+
+        window.addEventListener('DOMContentLoaded', fetchSheetData);
+    </script>
+</body>
+</html>

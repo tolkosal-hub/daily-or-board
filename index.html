@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OR Surgery Log - Login</title>
+    <style>
+        body {
+            font-family: 'Khmer OS Siem Reap', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-card {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-card h2 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 22px;
+        }
+        .login-card p {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+            font-size: 13px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .login-btn {
+            background-color: #34495e;
+            color: white;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 4px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        .login-btn:hover {
+            background-color: #2c3e50;
+        }
+        .error-msg {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <h2>មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង</h2>
+        <p>OR Surgery Log Authentication</p>
+        
+        <div id="errorMsg" class="error-msg"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" required placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required placeholder="Enter your password">
+            </div>
+            <button type="submit" class="login-btn">Log In</button>
+        </form>
+    </div>
+
+    <!-- Firebase SDK and Login Logic Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+
+        // Your exact Firebase project configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCoZ_MhbbZ9RJKT8CFVMLa2IiXiFU79jb4",
+            authDomain: "operating-room-board.firebaseapp.com",
+            projectId: "operating-room-board",
+            storageBucket: "operating-room-board.firebasestorage.app",
+            messagingSenderId: "856407340960",
+            appId: "1:856407340960:web:f1671c47de85b72044d6c5"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const loginForm = document.getElementById('loginForm');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // Handle Login Submission
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            errorMsg.style.display = 'none';
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Redirect to your Operating Room Board file upon successful login
+                    window.location.href = 'Operating_Room_Board.html';
+                })
+                .catch((error) => {
+                    errorMsg.style.display = 'block';
+                    errorMsg.textContent = error.message;
+                });
+        });
+
+        // Automatically redirect if already logged in
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.location.href = 'Operating_Room_Board.html';
+            }
+        });
+    </script>
+</body>
+</html>
