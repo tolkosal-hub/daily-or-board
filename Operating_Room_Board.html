@@ -94,6 +94,12 @@
             color: #3498db;
             display: none;
         }
+        .sync-indicator {
+            font-size: 12px;
+            color: #27ae60;
+            display: none;
+            margin-left: 10px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -244,9 +250,11 @@
         }
     </style>
 
-    <!-- Firebase App & Auth SDKs for Protection -->
+    <!-- Firebase App, Auth, & Firestore SDKs -->
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+    
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCoZ_MhbbZ9RJKT8CFVMLa2IiXiFU79jb4",
@@ -258,13 +266,13 @@
         };
         
         firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(); // Initialize Firestore for real-time syncing
 
         let currentUserEmail = "";
+        let initialLoadComplete = false;
 
-        // Enforce session persistence per browser instance
         firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
             .then(() => {
-                // Security Guard & Custom User Display Mapping
                 firebase.auth().onAuthStateChanged((user) => {
                     if (!user) {
                         window.location.href = 'index.html';
@@ -274,7 +282,6 @@
                         
                         if (userDisplay && user.email) {
                             let displayName = "";
-
                             if (currentUserEmail === "maodara@gmail.com") {
                                 displayName = "ម៉ៅ តារា";
                             } else if (currentUserEmail === "pichphirum@gmail.com") {
@@ -283,7 +290,6 @@
                                 let rawName = user.email.split('@')[0];
                                 displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
                             }
-
                             userDisplay.textContent = displayName;
                         }
                         
@@ -314,6 +320,7 @@
             <label for="dateFilter">Select Date:</label>
             <input type="date" id="dateFilter">
             <span id="loadingIndicator" class="loading">Fetching live data...</span>
+            <span id="syncIndicator" class="sync-indicator">↻ Live Update Received</span>
         </div>
         <div class="right-controls">
             <span class="user-info">Logged in as: <strong id="userDisplay">Loading...</strong></span>
@@ -367,6 +374,7 @@
         const dateFilter = document.getElementById('dateFilter');
         const tableBody = document.getElementById('tableBody');
         const loadingIndicator = document.getElementById('loadingIndicator');
+        const syncIndicator = document.getElementById('syncIndicator');
         const errorMessage = document.getElementById('errorMessage');
         
         let scheduleData = [];
@@ -441,8 +449,13 @@
             return (rowDateStr <= todayStr && currentHour >= 18);
         }
 
-        function fetchSheetData() {
-            loadingIndicator.style.display = 'inline';
+        // Modified to accept a 'isSilent' parameter for background syncing
+        function fetchSheetData(isSilent = false) {
+            if (!isSilent) loadingIndicator.style.display = 'inline';
+            if (isSilent) {
+                syncIndicator.style.display = 'inline';
+                setTimeout(() => syncIndicator.style.display = 'none', 3000);
+            }
             errorMessage.style.display = 'none';
 
             fetch(APPS_SCRIPT_URL)
@@ -532,6 +545,18 @@
                 });
         }
 
+        // Listen to Firebase for Real-time Updates from other devices
+        db.collection("system").doc("sync_flag").onSnapshot((doc) => {
+            if (doc.exists) {
+                // Ignore the very first snapshot load, only fetch on subsequent live changes
+                if (initialLoadComplete) {
+                    fetchSheetData(true); 
+                } else {
+                    initialLoadComplete = true;
+                }
+            }
+        });
+
         function updateDropdown(rowId, fieldKey, newValue, selectElement) {
             if (!isUserAllowedToEdit()) {
                 alert('You do not have permission to modify staff assignments.');
@@ -570,7 +595,8 @@
                 remark: row.remark,
                 anesthetic_team: row.anestheticTeam,
                 or_nurse: row.orNurse,
-                status: row.status
+                status: row.status,
+                selected_by: document.getElementById('userDisplay').textContent
             };
 
             fetch(APPS_SCRIPT_URL, {
@@ -582,6 +608,13 @@
                 if (data.status === 'success') {
                     selectElement.style.backgroundColor = '#d4edda'; 
                     setTimeout(() => selectElement.style.backgroundColor = originalBg, 2000);
+                    
+                    // NEW: Tell Firebase that data changed so all other devices update instantly
+                    db.collection("system").doc("sync_flag").set({
+                        last_updated: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_by: currentUserEmail
+                    });
+                    
                 } else {
                     throw new Error(data.message);
                 }
