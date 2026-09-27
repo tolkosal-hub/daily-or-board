@@ -370,7 +370,7 @@
         </div>
     </div>
 
-    <script>
+        <script>
         const dateFilter = document.getElementById('dateFilter');
         const tableBody = document.getElementById('tableBody');
         const loadingIndicator = document.getElementById('loadingIndicator');
@@ -380,6 +380,9 @@
         let scheduleData = [];
         const areas = ['OTS1', 'OTS2', 'OTS3'];
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrk6OuH81kLg4H0CA8j2mXxvYk3C1Ag-nLO09VUvM0BteaU5spvNRDtzTpDtXYkzo/exec';
+
+        // NEW: Generate a unique ID for this browser tab to prevent self-refresh flickering
+        const tabClientId = Math.random().toString(36).substring(2, 15);
 
         const allowedEditors = [
             "admin@gmail.com",
@@ -449,7 +452,6 @@
             return (rowDateStr <= todayStr && currentHour >= 18);
         }
 
-        // Modified to accept a 'isSilent' parameter for background syncing
         function fetchSheetData(isSilent = false) {
             if (!isSilent) loadingIndicator.style.display = 'inline';
             if (isSilent) {
@@ -474,8 +476,10 @@
 
                         if (Array.isArray(row)) {
                              rowDate = formatDataDate(row[1]);
-                             anest = String(row[15] || '');
-                             nurse = String(row[16] || '');
+                             
+                             // FIXED: Pointing to exact columns S (18) and T (19) 
+                             anest = String(row[18] || '');
+                             nurse = String(row[19] || '');
                         } else {
                              rowDate = formatDataDate(row['Date'] || row['date']);
                              anest = String(row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || '');
@@ -541,14 +545,20 @@
                     console.error('Error fetching data:', error);
                     loadingIndicator.style.display = 'none';
                     errorMessage.style.display = 'block';
-                    errorMessage.innerHTML = `<strong>Error connecting to Google Apps Script.</strong> Details: ${error.message} - Ensure your Web App is deployed as "Anyone" can access.`;
+                    errorMessage.innerHTML = `<strong>Error connecting to Google Apps Script.</strong> Details: ${error.message}`;
                 });
         }
 
-        // Listen to Firebase for Real-time Updates from other devices
+        // Listen to Firebase for Real-time Updates
         db.collection("system").doc("sync_flag").onSnapshot((doc) => {
             if (doc.exists) {
-                // Ignore the very first snapshot load, only fetch on subsequent live changes
+                const data = doc.data();
+                
+                // FIXED: If THIS tab triggered the update, ignore it so the screen doesn't flicker
+                if (data.client_id === tabClientId) {
+                    return;
+                }
+
                 if (initialLoadComplete) {
                     fetchSheetData(true); 
                 } else {
@@ -609,10 +619,11 @@
                     selectElement.style.backgroundColor = '#d4edda'; 
                     setTimeout(() => selectElement.style.backgroundColor = originalBg, 2000);
                     
-                    // NEW: Tell Firebase that data changed so all other devices update instantly
+                    // FIXED: Send the tabClientId to Firebase so this tab knows not to re-download immediately
                     db.collection("system").doc("sync_flag").set({
                         last_updated: firebase.firestore.FieldValue.serverTimestamp(),
-                        updated_by: currentUserEmail
+                        updated_by: currentUserEmail,
+                        client_id: tabClientId 
                     });
                     
                 } else {
@@ -706,5 +717,6 @@
 
         window.addEventListener('DOMContentLoaded', fetchSheetData);
     </script>
+
 </body>
 </html>
