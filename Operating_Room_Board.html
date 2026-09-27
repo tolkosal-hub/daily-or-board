@@ -89,6 +89,26 @@
         .signout-btn:hover {
             background-color: #c0392b;
         }
+        .csv-btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Khmer OS Siem Reap', 'Segoe UI', sans-serif;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .csv-btn:hover {
+            background-color: #219150;
+        }
+
         .loading {
             font-style: italic;
             color: #3498db;
@@ -261,9 +281,15 @@
             <span id="loadingIndicator" class="loading">Fetching live data...</span>
             <span id="syncIndicator" class="sync-indicator">↻ Live Update Received</span>
         </div>
-        <div class="right-controls">
+                <div class="right-controls">
             <span class="user-info">Logged in as: <strong id="userDisplay">Loading...</strong></span>
             
+            <!-- New Export CSV Button -->
+            <button id="exportCsvBtn" class="csv-btn" onclick="exportToCSV()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Export CSV
+            </button>
+
             <button id="exportPdfBtn" class="print-btn" onclick="exportToPDF()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Export as PDF
@@ -271,6 +297,7 @@
 
             <button class="signout-btn" onclick="signOutUser()">Sign Out</button>
         </div>
+
     </div>
     
     <div id="errorMessage" class="error-message"></div>
@@ -768,6 +795,75 @@
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
             }
+        }
+
+        function exportToCSV() {
+            const dateStr = document.getElementById('dateFilter').value || 'schedule';
+            const filteredData = scheduleData.filter(row => row.date === dateStr);
+            
+            // Add UTF-8 BOM so Excel automatically recognizes Khmer characters
+            let csvContent = "\uFEFF"; 
+            
+            // --- TABLE TITLES ---
+            csvContent += "មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង\n";
+            csvContent += "ផ្នែក សល្យាគារ\n";
+            csvContent += "កម្មវិធីវះកាត់ប្រចាំថ្ងៃ\n";
+            csvContent += `Date: ${dateStr}\n\n`;
+
+            // CSV Headers
+            csvContent += "Area,Time,Patient ID,Patient Name,Age,Sex,Room/Bed,Diagnosis,Procedure,Surgeon,Assistant,Special Instruments,Remark,Anesthetic Team,OR Nurse,Status\n";
+
+            // Loop through areas to maintain the same grouping as the visual table
+            areas.forEach(area => {
+                let areaData = filteredData.filter(row => row.area === area);
+                
+                if (areaData.length > 0) {
+                    areaData.sort((a, b) => a.time.localeCompare(b.time));
+                    
+                    areaData.forEach(row => {
+                        // Standard escape for normal fields
+                        const escapeCsv = (val) => `"${String(val).replace(/"/g, '""')}"`;
+                        
+                        // SPECIAL FORMAT: Forces Excel to treat the value strictly as text (prevents 7/5 becoming July 5)
+                        const forceExcelText = (val) => `="${String(val).replace(/"/g, '""')}"`;
+                        
+                        // Map each column individually so we can apply forceExcelText to Room/Bed
+                        const rowArray = [
+                            escapeCsv(area),
+                            escapeCsv(row.time),
+                            escapeCsv(row.patientId),
+                            escapeCsv(row.patientName),
+                            escapeCsv(row.age),
+                            escapeCsv(row.sex),
+                            forceExcelText(row.roomBed), // <-- Applied the anti-date formatting here
+                            escapeCsv(row.diagnosis),
+                            escapeCsv(row.procedure),
+                            escapeCsv(row.surgeon),
+                            escapeCsv(row.assistant),
+                            escapeCsv(row.specialInstruments),
+                            escapeCsv(row.remark),
+                            escapeCsv(row.anestheticTeam),
+                            escapeCsv(row.orNurse),
+                            escapeCsv(row.status)
+                        ];
+                        
+                        csvContent += rowArray.join(",") + "\n";
+                    });
+                }
+            });
+
+            // Create and trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `OR_Schedule_${dateStr}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         dateFilter.addEventListener('change', (e) => {
