@@ -309,7 +309,7 @@
         </div>
     </div>
 
-        <script>
+    <script>
         const dateFilter = document.getElementById('dateFilter');
         const tableBody = document.getElementById('tableBody');
         const loadingIndicator = document.getElementById('loadingIndicator');
@@ -496,20 +496,14 @@
                 });
         }
 
-        let syncTimeout;
         db.collection("system").doc("sync_flag").onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
                 if (data.client_id === tabClientId) {
                     return;
                 }
-                
-                // Debounce real-time fetches to prevent freeze loops
                 if (initialLoadComplete) {
-                    clearTimeout(syncTimeout);
-                    syncTimeout = setTimeout(() => {
-                        fetchSheetData(true); 
-                    }, 800);
+                    fetchSheetData(true); 
                 } else {
                     initialLoadComplete = true;
                 }
@@ -607,6 +601,7 @@
 
             areas.forEach(area => {
                 const headerRow = document.createElement('tr');
+                // Updated colSpan to 15
                 headerRow.innerHTML = `<td colspan="15" class="area-header">${area}</td>`;
                 tableBody.appendChild(headerRow);
 
@@ -614,6 +609,7 @@
 
                 if (areaData.length === 0) {
                     const emptyRow = document.createElement('tr');
+                    // Updated colSpan to 15
                     emptyRow.innerHTML = `<td colspan="15" class="no-data">No surgeries scheduled in ${area}.</td>`;
                     tableBody.appendChild(emptyRow);
                 } else {
@@ -658,6 +654,7 @@
                         `;
 
                         tr.innerHTML = `
+                            <!-- Removed <td>${row.date}</td> -->
                             <td>${row.time}</td>
                             <td>${row.patientId}</td>
                             <td>${row.patientName}</td>
@@ -680,107 +677,72 @@
             });
         }
 
-                function exportToPDF() {
+        function exportToPDF() {
             const btn = document.getElementById('exportPdfBtn');
             const originalContent = btn.innerHTML;
-            btn.innerHTML = 'Generating PDF...';
+            btn.innerHTML = 'Generating...';
             btn.disabled = true;
 
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'pt', 'a4'); 
+            
             const dateStr = document.getElementById('dateFilter').value || 'schedule';
 
-            // 1. Create the container but DO NOT append it to the document body
-            const pdfContainer = document.createElement('div');
-            pdfContainer.style.padding = '20px';
-            pdfContainer.style.fontFamily = "'Khmer OS Siem Reap', sans-serif";
-            pdfContainer.style.width = '1100px'; 
-            pdfContainer.style.backgroundColor = '#ffffff';
-            
-            let htmlContent = `
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="font-size: 18px; margin: 5px 0;">មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង</h2>
-                    <h2 style="font-size: 16px; margin: 5px 0;">ផ្នែក សល្យាគារ</h2>
-                    <h1 style="font-size: 22px; color: #2c3e50; margin-bottom: 5px;">កម្មវិធីវះកាត់ប្រចាំថ្ងៃ (Daily Operating Room Board)</h1>
-                    <h3 style="font-size: 14px; color: #555; margin-top: 0;">Date: ${dateStr}</h3>
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
-                    <thead>
-                        <tr>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Time</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Patient ID</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Patient Name</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Age</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Sex</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Room/Bed</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Diagnosis</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Procedure</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Surgeon</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Assistant</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Instruments</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Remark</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Anesthesia</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">OR Nurse</th>
-                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+            doc.setFontSize(16);
+            doc.text("Daily Operating Room Board", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text(`Date: ${dateStr}`, doc.internal.pageSize.getWidth() / 2, 60, { align: 'center' });
 
             const filteredData = scheduleData.filter(row => row.date === dateStr);
+            let tableRows = [];
 
             areas.forEach(area => {
                 let areaData = filteredData.filter(row => row.area === area);
                 
-                htmlContent += `<tr><td colspan="15" style="border: 1px solid #000; padding: 6px; background-color: #f0f0f0; font-weight: bold; text-align: center;">${area}</td></tr>`;
+                // Updated colSpan to 15
+                tableRows.push([{ content: area, colSpan: 15, styles: { halign: 'center', fillColor: [189, 195, 199], textColor: [44, 62, 80], fontStyle: 'bold' } }]);
                 
                 if (areaData.length === 0) {
-                    htmlContent += `<tr><td colspan="15" style="border: 1px solid #000; padding: 6px; text-align: center; font-style: italic; color: #7f8c8d;">No surgeries scheduled in ${area}.</td></tr>`;
+                    // Updated colSpan to 15
+                    tableRows.push([{ content: `No surgeries scheduled in ${area}.`, colSpan: 15, styles: { halign: 'center', fontStyle: 'italic', textColor: [127, 140, 141] } }]);
                 } else {
                     areaData.sort((a, b) => a.time.localeCompare(b.time));
+                    
                     areaData.forEach(row => {
-                        htmlContent += `
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.time}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.patientId}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.patientName}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.age}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.sex}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.roomBed}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.diagnosis}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.procedure}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.surgeon}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.assistant}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.specialInstruments}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.remark}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.anestheticTeam}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.orNurse}</td>
-                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.status}</td>
-                            </tr>
-                        `;
+                        tableRows.push([
+                            // Removed row.date
+                            row.time, row.patientId, row.patientName, row.age, row.sex, row.roomBed,
+                            row.diagnosis, row.procedure, row.surgeon, row.assistant, row.specialInstruments,
+                            row.remark, row.anestheticTeam, row.orNurse, row.status
+                        ]);
                     });
                 }
             });
 
-            htmlContent += `</tbody></table>`;
-            pdfContainer.innerHTML = htmlContent;
-
-            const opt = {
-                margin:       [0.3, 0.3, 0.3, 0.3],
-                filename:     `OR_Schedule_${dateStr}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 }, // Removed useCORS and windowWidth to prevent fetching bugs
-                jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
-            };
-
-            // 2. Feed the detached HTML element directly to html2pdf
-            html2pdf().set(opt).from(pdfContainer).save().then(() => {
-                btn.innerHTML = originalContent;
-                btn.disabled = false;
-            }).catch(err => {
-                console.error("PDF generation error: ", err);
-                alert("Failed to generate PDF. Please try again.");
-                btn.innerHTML = originalContent;
-                btn.disabled = false;
+            // Removed 'Date' from the head array
+            doc.autoTable({
+                head: [['Time', 'ID', 'Name', 'Age', 'Sex', 'Room/Bed', 'Diagnosis', 'Procedure', 'Surgeon', 'Assistant', 'Instruments', 'Remark', 'Anesthesia', 'OR Nurse', 'Status']],
+                body: tableRows,
+                startY: 80,
+                styles: { 
+                    fontSize: 8, 
+                    cellPadding: 3, 
+                    lineWidth: 0.5, 
+                    lineColor: [0, 0, 0] 
+                },
+                headStyles: { 
+                    fillColor: [52, 73, 94], 
+                    textColor: 255, 
+                    halign: 'center' 
+                },
+                theme: 'grid',
+                margin: { top: 30, right: 20, bottom: 30, left: 20 }
             });
+
+            doc.save(`OR_Schedule_${dateStr}.pdf`);
+            
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
         }
 
         dateFilter.addEventListener('change', (e) => {
@@ -789,6 +751,5 @@
 
         window.addEventListener('DOMContentLoaded', fetchSheetData);
     </script>
-
 </body>
 </html>
