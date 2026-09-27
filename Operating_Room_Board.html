@@ -182,25 +182,25 @@
         @media print {
             @page {
                 size: A4 landscape;
-                margin: 5mm;
+                margin: 10mm;
             }
             body {
                 background: #fff;
+                margin: 0;
+                padding: 0;
+                color: #000;
             }
-            body * {
-                visibility: hidden; 
-            }
-            #printArea, #printArea * {
-                visibility: visible; 
+            /* Explicitly hide controls and errors so they take up 0 space */
+            .controls, .error-message {
+                display: none !important;
             }
             #printArea {
-                position: absolute;
-                left: 0;
-                top: 0;
                 width: 100%;
+                display: block;
+                position: static !important; /* Allows multi-page printing to flow correctly */
             }
             .header {
-                margin-bottom: 10px;
+                margin-bottom: 15px;
             }
             .header h1 {
                 font-size: 20px;
@@ -210,20 +210,36 @@
                 font-size: 14px;
                 margin: 3px 0;
             }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: auto; /* Lets the browser adjust column widths to fit A4 */
+            }
+            /* Repeat table headers on every new printed page */
+            thead {
+                display: table-header-group;
+            }
+            /* Prevent rows from being cut in half across pages */
+            tr {
+                page-break-inside: avoid;
+            }
             th, td {
                 padding: 6px 4px;
-                font-size: 11px;
+                font-size: 10px; /* Scaled down slightly to fit all 16 columns */
                 color: #000;
-                border: 1px solid #000;
+                border: 1px solid #000 !important;
                 vertical-align: middle;
                 text-align: center;
+                word-wrap: break-word;
             }
             th {
                 background-color: #e0e0e0 !important;
                 color: #000 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                font-size: 11px;
             }
+            /* Clean up dropdown styling so it prints like normal text */
             select {
                 appearance: none;
                 -webkit-appearance: none;
@@ -231,27 +247,22 @@
                 border: none;
                 background: transparent;
                 padding: 0;
-                font-size: 11px;
+                margin: 0;
+                font-size: 10px;
                 color: #000;
-                width: auto;
-                min-width: auto;
                 text-align: center;
+                width: 100%;
+                min-width: 0;
+            }
+            select::-ms-expand {
+                display: none;
             }
             .area-header {
                 background-color: #f0f0f0 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
-                font-size: 13px;
+                font-size: 12px;
                 padding: 6px;
-            }
-            table {
-                width: 100%;
-                border: 1px solid #000;
-                page-break-inside: auto;
-            }
-            tr {
-                page-break-inside: avoid;
-                page-break-after: auto;
             }
         }
     </style>
@@ -598,9 +609,6 @@
                 return;
             }
 
-            // MODIFIED SECURITY LOGIC: 
-            // All verified users have unlimited edit access, EXCEPT staff@gmail.com
-            // staff@gmail.com is restricted and can only change dropdowns they originally selected.
             const currentDisplayName = document.getElementById('userDisplay').textContent;
             const isStaffUser = currentUserEmail === "staff@gmail.com";
 
