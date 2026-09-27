@@ -149,6 +149,12 @@
             font-size: 12px;
             text-align: center;
         }
+        select:disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            border-color: #ced4da;
+        }
         .status-finished {
             color: #27ae60;
             font-weight: bold;
@@ -266,12 +272,12 @@
         };
         
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore(); // Initialize Firestore for real-time syncing
+        const db = firebase.firestore();
 
         let currentUserEmail = "";
         let initialLoadComplete = false;
 
-        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
             .then(() => {
                 firebase.auth().onAuthStateChanged((user) => {
                     if (!user) {
@@ -286,6 +292,10 @@
                                 displayName = "ម៉ៅ តារា";
                             } else if (currentUserEmail === "pichphirum@gmail.com") {
                                 displayName = "ពេជ្រ ភីរម្យ";
+                            } else if (currentUserEmail === "phavphal@gmail.com") {
+                                displayName = "ផាវ ផល";
+                            } else if (currentUserEmail === "voeunkong@gmail.com") {
+                                displayName = "វឿន គង់";
                             } else {
                                 let rawName = user.email.split('@')[0];
                                 displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
@@ -338,7 +348,7 @@
         <div class="header">
             <h2>មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង</h2>
             <h2>ផ្នែក សល្យាគារ</h2>
-            <h1>កម្មវិធីវះកាត់ប្រចាំថ្ងៃ (Daily Operating Room Schedule)</h1>
+            <h1>កម្មវិធីវះកាត់ប្រចាំថ្ងៃ (Daily Operating Room Board)</h1>
         </div>
 
         <div style="overflow-x:auto;">
@@ -370,7 +380,7 @@
         </div>
     </div>
 
-        <script>
+    <script>
         const dateFilter = document.getElementById('dateFilter');
         const tableBody = document.getElementById('tableBody');
         const loadingIndicator = document.getElementById('loadingIndicator');
@@ -380,8 +390,9 @@
         let scheduleData = [];
         const areas = ['OTS1', 'OTS2', 'OTS3'];
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrk6OuH81kLg4H0CA8j2mXxvYk3C1Ag-nLO09VUvM0BteaU5spvNRDtzTpDtXYkzo/exec';
-
-        // NEW: Generate a unique ID for this browser tab to prevent self-refresh flickering
+        
+        // Define Admin account
+        const ADMIN_EMAIL = "admin@gmail.com";
         const tabClientId = Math.random().toString(36).substring(2, 15);
 
         const allowedEditors = [
@@ -389,7 +400,8 @@
             "maodara@gmail.com",
             "pichphirum@gmail.com",
             "phavphal@gmail.com",
-            "voeunkong@gmail.com"
+            "voeunkong@gmail.com",
+            "staff@gmail.com"
         ];
 
         function isUserAllowedToEdit() {
@@ -473,22 +485,29 @@
                         let rowDate = '';
                         let anest = '';
                         let nurse = '';
+                        let selectedBy = ''; // Capture who made the selection
 
                         if (Array.isArray(row)) {
                              rowDate = formatDataDate(row[1]);
-                             
-                             // FIXED: Pointing to exact columns S (18) and T (19) 
                              anest = String(row[18] || '');
                              nurse = String(row[19] || '');
+                             selectedBy = String(row[20] || ''); // Index 20 = Column U
                         } else {
                              rowDate = formatDataDate(row['Date'] || row['date']);
                              anest = String(row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || '');
                              nurse = String(row['OR Nurse'] || row['orNurse'] || row['or_nurse'] || '');
+                             selectedBy = String(row['Selected By'] || row['selectedBy'] || row['selected_by'] || '');
                         }
+
+                        // Translate the explicit 'None' backend payload back to an empty UI state
+                        if (anest === 'None') anest = '';
+                        if (nurse === 'None') nurse = '';
+                        if (selectedBy === 'None') selectedBy = '';
 
                         if (isPastResetTime(rowDate) && (anest !== '' || nurse !== '')) {
                             anest = '';
                             nurse = '';
+                            selectedBy = '';
                         }
 
                         if (Array.isArray(row)) {
@@ -511,6 +530,7 @@
                                 remark: String(row[14] || ''),
                                 anestheticTeam: anest,
                                 orNurse: nurse,
+                                selectedBy: selectedBy,
                                 status: String(row[17] || '')
                              };
                         } else {
@@ -533,6 +553,7 @@
                                 remark: String(row['Remark'] || row['remark'] || ''),
                                 anestheticTeam: anest,
                                 orNurse: nurse,
+                                selectedBy: selectedBy,
                                 status: String(row['Status'] || row['status'] || '')
                             };
                         }
@@ -549,16 +570,12 @@
                 });
         }
 
-        // Listen to Firebase for Real-time Updates
         db.collection("system").doc("sync_flag").onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
-                
-                // FIXED: If THIS tab triggered the update, ignore it so the screen doesn't flicker
                 if (data.client_id === tabClientId) {
                     return;
                 }
-
                 if (initialLoadComplete) {
                     fetchSheetData(true); 
                 } else {
@@ -570,6 +587,7 @@
         function updateDropdown(rowId, fieldKey, newValue, selectElement) {
             if (!isUserAllowedToEdit()) {
                 alert('You do not have permission to modify staff assignments.');
+                selectElement.value = scheduleData.find(r => r._id === rowId)[fieldKey] || 'None'; 
                 return;
             }
 
@@ -578,11 +596,25 @@
 
             if (isPastResetTime(row.date)) {
                 alert('Assignments cannot be modified after 18:00 daily.');
-                selectElement.value = row[fieldKey]; 
+                selectElement.value = row[fieldKey] || 'None'; 
                 return;
             }
 
-            row[fieldKey] = newValue;
+            // Security Check - Only Admin or Original Selector can change
+            const currentDisplayName = document.getElementById('userDisplay').textContent;
+            const isAdmin = currentUserEmail === ADMIN_EMAIL;
+
+            if (row.selectedBy !== '' && !isAdmin && row.selectedBy !== currentDisplayName) {
+                alert('Access Denied: Only the Admin or the user who originally made this selection can change it.');
+                selectElement.value = row[fieldKey] === '' ? 'None' : row[fieldKey]; // Revert the visual change
+                return;
+            }
+
+            // Apply value locally. If "None" was selected, treat it as empty
+            row[fieldKey] = (newValue === 'None') ? '' : newValue;
+
+            // ALWAYS keep the Selected By as the user who edited it
+            row.selectedBy = currentDisplayName;
 
             const originalBg = selectElement.style.backgroundColor;
             selectElement.style.backgroundColor = '#e8f4fd'; 
@@ -603,10 +635,14 @@
                 assistant: row.assistant,
                 special_instruments: row.specialInstruments,
                 remark: row.remark,
-                anesthetic_team: row.anestheticTeam,
-                or_nurse: row.orNurse,
+                
+                // Force empty fields to transmit 'None' to bypass Google Script's blank data preservation
+                anesthetic_team: row.anestheticTeam === '' ? 'None' : row.anestheticTeam,
+                or_nurse: row.orNurse === '' ? 'None' : row.orNurse,
                 status: row.status,
-                selected_by: document.getElementById('userDisplay').textContent
+                
+                // Transmit the name of the user making this change
+                selected_by: currentDisplayName
             };
 
             fetch(APPS_SCRIPT_URL, {
@@ -619,7 +655,6 @@
                     selectElement.style.backgroundColor = '#d4edda'; 
                     setTimeout(() => selectElement.style.backgroundColor = originalBg, 2000);
                     
-                    // FIXED: Send the tabClientId to Firebase so this tab knows not to re-download immediately
                     db.collection("system").doc("sync_flag").set({
                         last_updated: firebase.firestore.FieldValue.serverTimestamp(),
                         updated_by: currentUserEmail,
@@ -641,7 +676,11 @@
             tableBody.innerHTML = ''; 
             
             const filteredData = scheduleData.filter(row => row.date === selectedDate);
-            const isLocked = isPastResetTime(selectedDate) || !isUserAllowedToEdit();
+            
+            // Check global lock first
+            const isGloballyLocked = isPastResetTime(selectedDate) || !isUserAllowedToEdit();
+            const currentDisplayName = document.getElementById('userDisplay').textContent;
+            const isAdmin = currentUserEmail === ADMIN_EMAIL;
 
             areas.forEach(area => {
                 const headerRow = document.createElement('tr');
@@ -667,11 +706,22 @@
                         if(statusVal === 'finished') statusClass = 'status-finished';
                         if(statusVal === 'pending') statusClass = 'status-pending';
 
-                        const disabledAttr = isLocked ? 'disabled title="Restricted or locked after 18:00"' : '';
+                        // Row-specific security check
+                        let isRowLocked = isGloballyLocked;
+                        
+                        // If it's not past 18:00, check ownership rules
+                        if (!isRowLocked && row.selectedBy !== '') {
+                            // If current user is not Admin AND they are not the one who selected it, lock it visually
+                            if (!isAdmin && row.selectedBy !== currentDisplayName) {
+                                isRowLocked = true;
+                            }
+                        }
+
+                        const disabledAttr = isRowLocked ? 'disabled title="Restricted to Admin or Original Selector"' : '';
 
                         const anestHtml = `
                             <select ${disabledAttr} onchange="updateDropdown('${row._id}', 'anestheticTeam', this.value, this)">
-                                <option value="">Select Team</option>
+                                <option value="None" ${row.anestheticTeam === '' ? 'selected' : ''}>Select Team</option>
                                 <option value="Team A" ${row.anestheticTeam === 'Team A' ? 'selected' : ''}>Team A</option>
                                 <option value="Team B" ${row.anestheticTeam === 'Team B' ? 'selected' : ''}>Team B</option>
                                 <option value="Team C" ${row.anestheticTeam === 'Team C' ? 'selected' : ''}>Team C</option>
@@ -680,7 +730,7 @@
 
                         const nurseHtml = `
                             <select ${disabledAttr} onchange="updateDropdown('${row._id}', 'orNurse', this.value, this)">
-                                <option value="">Select Team</option>
+                                <option value="None" ${row.orNurse === '' ? 'selected' : ''}>Select Team</option>
                                 <option value="Team A" ${row.orNurse === 'Team A' ? 'selected' : ''}>Team A</option>
                                 <option value="Team B" ${row.orNurse === 'Team B' ? 'selected' : ''}>Team B</option>
                                 <option value="Team C" ${row.orNurse === 'Team C' ? 'selected' : ''}>Team C</option>
@@ -717,6 +767,5 @@
 
         window.addEventListener('DOMContentLoaded', fetchSheetData);
     </script>
-
 </body>
 </html>
