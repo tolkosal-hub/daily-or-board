@@ -124,7 +124,7 @@
         td {
             white-space: nowrap; 
         }
-        td:nth-child(8), td:nth-child(9) {
+        td:nth-child(7), td:nth-child(8) {
             white-space: normal; 
         }
         .area-header {
@@ -177,100 +177,16 @@
             margin-bottom: 20px;
             display: none;
         }
-
-        /* ----- Print Specific Styles ----- */
-        @media print {
-            @page {
-                size: A4 landscape;
-                margin: 10mm;
-            }
-            body {
-                background: #fff;
-                margin: 0;
-                padding: 0;
-                color: #000;
-            }
-            /* Explicitly hide controls and errors so they take up 0 space */
-            .controls, .error-message {
-                display: none !important;
-            }
-            #printArea {
-                width: 100%;
-                display: block;
-                position: static !important; /* Allows multi-page printing to flow correctly */
-            }
-            .header {
-                margin-bottom: 15px;
-            }
-            .header h1 {
-                font-size: 20px;
-                margin: 5px 0;
-            }
-            .header h2 {
-                font-size: 14px;
-                margin: 3px 0;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                table-layout: auto; /* Lets the browser adjust column widths to fit A4 */
-            }
-            /* Repeat table headers on every new printed page */
-            thead {
-                display: table-header-group;
-            }
-            /* Prevent rows from being cut in half across pages */
-            tr {
-                page-break-inside: avoid;
-            }
-            th, td {
-                padding: 6px 4px;
-                font-size: 10px; /* Scaled down slightly to fit all 16 columns */
-                color: #000;
-                border: 1px solid #000 !important;
-                vertical-align: middle;
-                text-align: center;
-                word-wrap: break-word;
-            }
-            th {
-                background-color: #e0e0e0 !important;
-                color: #000 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                font-size: 11px;
-            }
-            /* Clean up dropdown styling so it prints like normal text */
-            select {
-                appearance: none;
-                -webkit-appearance: none;
-                -moz-appearance: none;
-                border: none;
-                background: transparent;
-                padding: 0;
-                margin: 0;
-                font-size: 10px;
-                color: #000;
-                text-align: center;
-                width: 100%;
-                min-width: 0;
-            }
-            select::-ms-expand {
-                display: none;
-            }
-            .area-header {
-                background-color: #f0f0f0 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                font-size: 12px;
-                padding: 6px;
-            }
-        }
     </style>
 
     <!-- Firebase App, Auth, & Firestore SDKs -->
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+    
+    <!-- jsPDF and AutoTable for Data-to-PDF conversion -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     
     <script>
         const firebaseConfig = {
@@ -345,10 +261,12 @@
         </div>
         <div class="right-controls">
             <span class="user-info">Logged in as: <strong id="userDisplay">Loading...</strong></span>
-            <button class="print-btn" onclick="window.print()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                Print Schedule
+            
+            <button id="exportPdfBtn" class="print-btn" onclick="exportToPDF()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export as PDF
             </button>
+
             <button class="signout-btn" onclick="signOutUser()">Sign Out</button>
         </div>
     </div>
@@ -366,7 +284,7 @@
             <table id="orTable">
                 <thead>
                     <tr>
-                        <th>Date</th>
+                        <!-- Removed Date Header -->
                         <th>Time</th>
                         <th>Patient ID</th>
                         <th>Patient Name</th>
@@ -391,7 +309,7 @@
         </div>
     </div>
 
-    <script>
+        <script>
         const dateFilter = document.getElementById('dateFilter');
         const tableBody = document.getElementById('tableBody');
         const loadingIndicator = document.getElementById('loadingIndicator');
@@ -508,7 +426,6 @@
                              selectedBy = String(row['Selected By'] || row['selectedBy'] || row['selected_by'] || '');
                         }
 
-                        // Translate the explicit 'None' backend payload back to an empty UI state
                         if (anest === 'None') anest = '';
                         if (nurse === 'None') nurse = '';
                         if (selectedBy === 'None') selectedBy = '';
@@ -579,14 +496,20 @@
                 });
         }
 
+        let syncTimeout;
         db.collection("system").doc("sync_flag").onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
                 if (data.client_id === tabClientId) {
                     return;
                 }
+                
+                // Debounce real-time fetches to prevent freeze loops
                 if (initialLoadComplete) {
-                    fetchSheetData(true); 
+                    clearTimeout(syncTimeout);
+                    syncTimeout = setTimeout(() => {
+                        fetchSheetData(true); 
+                    }, 800);
                 } else {
                     initialLoadComplete = true;
                 }
@@ -614,14 +537,11 @@
 
             if (isStaffUser && row.selectedBy !== '' && row.selectedBy !== currentDisplayName) {
                 alert('Access Denied: You cannot change an assignment made by another user.');
-                selectElement.value = row[fieldKey] === '' ? 'None' : row[fieldKey]; // Revert the visual change
+                selectElement.value = row[fieldKey] === '' ? 'None' : row[fieldKey]; 
                 return;
             }
 
-            // Apply value locally. If "None" was selected, treat it as empty
             row[fieldKey] = (newValue === 'None') ? '' : newValue;
-
-            // ALWAYS keep the Selected By as the user who edited it
             row.selectedBy = currentDisplayName;
 
             const originalBg = selectElement.style.backgroundColor;
@@ -643,13 +563,9 @@
                 assistant: row.assistant,
                 special_instruments: row.specialInstruments,
                 remark: row.remark,
-                
-                // Force empty fields to transmit 'None' to bypass Google Script's blank data preservation
                 anesthetic_team: row.anestheticTeam === '' ? 'None' : row.anestheticTeam,
                 or_nurse: row.orNurse === '' ? 'None' : row.orNurse,
                 status: row.status,
-                
-                // Transmit the name of the user making this change
                 selected_by: currentDisplayName
             };
 
@@ -685,21 +601,20 @@
             
             const filteredData = scheduleData.filter(row => row.date === selectedDate);
             
-            // Check global lock first
             const isGloballyLocked = isPastResetTime(selectedDate) || !isUserAllowedToEdit();
             const currentDisplayName = document.getElementById('userDisplay').textContent;
             const isStaffUser = currentUserEmail === "staff@gmail.com";
 
             areas.forEach(area => {
                 const headerRow = document.createElement('tr');
-                headerRow.innerHTML = `<td colspan="16" class="area-header">${area}</td>`;
+                headerRow.innerHTML = `<td colspan="15" class="area-header">${area}</td>`;
                 tableBody.appendChild(headerRow);
 
                 let areaData = filteredData.filter(row => row.area === area);
 
                 if (areaData.length === 0) {
                     const emptyRow = document.createElement('tr');
-                    emptyRow.innerHTML = `<td colspan="16" class="no-data">No surgeries scheduled in ${area}.</td>`;
+                    emptyRow.innerHTML = `<td colspan="15" class="no-data">No surgeries scheduled in ${area}.</td>`;
                     tableBody.appendChild(emptyRow);
                 } else {
                     areaData.sort((a, b) => {
@@ -714,10 +629,8 @@
                         if(statusVal === 'finished') statusClass = 'status-finished';
                         if(statusVal === 'pending') statusClass = 'status-pending';
 
-                        // Row-specific security check
                         let isRowLocked = isGloballyLocked;
                         
-                        // If it's not past 18:00, check ownership rules (only restrict staff@gmail.com)
                         if (!isRowLocked && row.selectedBy !== '') {
                             if (isStaffUser && row.selectedBy !== currentDisplayName) {
                                 isRowLocked = true;
@@ -745,7 +658,6 @@
                         `;
 
                         tr.innerHTML = `
-                            <td>${row.date}</td>
                             <td>${row.time}</td>
                             <td>${row.patientId}</td>
                             <td>${row.patientName}</td>
@@ -768,11 +680,115 @@
             });
         }
 
+                function exportToPDF() {
+            const btn = document.getElementById('exportPdfBtn');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = 'Generating PDF...';
+            btn.disabled = true;
+
+            const dateStr = document.getElementById('dateFilter').value || 'schedule';
+
+            // 1. Create the container but DO NOT append it to the document body
+            const pdfContainer = document.createElement('div');
+            pdfContainer.style.padding = '20px';
+            pdfContainer.style.fontFamily = "'Khmer OS Siem Reap', sans-serif";
+            pdfContainer.style.width = '1100px'; 
+            pdfContainer.style.backgroundColor = '#ffffff';
+            
+            let htmlContent = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="font-size: 18px; margin: 5px 0;">មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង</h2>
+                    <h2 style="font-size: 16px; margin: 5px 0;">ផ្នែក សល្យាគារ</h2>
+                    <h1 style="font-size: 22px; color: #2c3e50; margin-bottom: 5px;">កម្មវិធីវះកាត់ប្រចាំថ្ងៃ (Daily Operating Room Board)</h1>
+                    <h3 style="font-size: 14px; color: #555; margin-top: 0;">Date: ${dateStr}</h3>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Time</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Patient ID</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Patient Name</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Age</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Sex</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Room/Bed</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Diagnosis</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Procedure</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Surgeon</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Assistant</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Instruments</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Remark</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Anesthesia</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">OR Nurse</th>
+                            <th style="border: 1px solid #000; padding: 6px; background-color: #e0e0e0; color: #000;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            const filteredData = scheduleData.filter(row => row.date === dateStr);
+
+            areas.forEach(area => {
+                let areaData = filteredData.filter(row => row.area === area);
+                
+                htmlContent += `<tr><td colspan="15" style="border: 1px solid #000; padding: 6px; background-color: #f0f0f0; font-weight: bold; text-align: center;">${area}</td></tr>`;
+                
+                if (areaData.length === 0) {
+                    htmlContent += `<tr><td colspan="15" style="border: 1px solid #000; padding: 6px; text-align: center; font-style: italic; color: #7f8c8d;">No surgeries scheduled in ${area}.</td></tr>`;
+                } else {
+                    areaData.sort((a, b) => a.time.localeCompare(b.time));
+                    areaData.forEach(row => {
+                        htmlContent += `
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.time}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.patientId}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.patientName}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.age}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.sex}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.roomBed}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.diagnosis}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.procedure}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.surgeon}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.assistant}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.specialInstruments}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.remark}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.anestheticTeam}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.orNurse}</td>
+                                <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${row.status}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            htmlContent += `</tbody></table>`;
+            pdfContainer.innerHTML = htmlContent;
+
+            const opt = {
+                margin:       [0.3, 0.3, 0.3, 0.3],
+                filename:     `OR_Schedule_${dateStr}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 }, // Removed useCORS and windowWidth to prevent fetching bugs
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+            };
+
+            // 2. Feed the detached HTML element directly to html2pdf
+            html2pdf().set(opt).from(pdfContainer).save().then(() => {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error("PDF generation error: ", err);
+                alert("Failed to generate PDF. Please try again.");
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            });
+        }
+
         dateFilter.addEventListener('change', (e) => {
             renderTable(e.target.value);
         });
 
         window.addEventListener('DOMContentLoaded', fetchSheetData);
     </script>
+
 </body>
 </html>
