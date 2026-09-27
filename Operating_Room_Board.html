@@ -391,8 +391,6 @@
         const areas = ['OTS1', 'OTS2', 'OTS3'];
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrk6OuH81kLg4H0CA8j2mXxvYk3C1Ag-nLO09VUvM0BteaU5spvNRDtzTpDtXYkzo/exec';
         
-        // Define Admin account
-        const ADMIN_EMAIL = "admin@gmail.com";
         const tabClientId = Math.random().toString(36).substring(2, 15);
 
         const allowedEditors = [
@@ -485,13 +483,13 @@
                         let rowDate = '';
                         let anest = '';
                         let nurse = '';
-                        let selectedBy = ''; // Capture who made the selection
+                        let selectedBy = ''; 
 
                         if (Array.isArray(row)) {
                              rowDate = formatDataDate(row[1]);
                              anest = String(row[18] || '');
                              nurse = String(row[19] || '');
-                             selectedBy = String(row[20] || ''); // Index 20 = Column U
+                             selectedBy = String(row[20] || ''); 
                         } else {
                              rowDate = formatDataDate(row['Date'] || row['date']);
                              anest = String(row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || '');
@@ -600,12 +598,14 @@
                 return;
             }
 
-            // Security Check - Only Admin or Original Selector can change
+            // MODIFIED SECURITY LOGIC: 
+            // All verified users have unlimited edit access, EXCEPT staff@gmail.com
+            // staff@gmail.com is restricted and can only change dropdowns they originally selected.
             const currentDisplayName = document.getElementById('userDisplay').textContent;
-            const isAdmin = currentUserEmail === ADMIN_EMAIL;
+            const isStaffUser = currentUserEmail === "staff@gmail.com";
 
-            if (row.selectedBy !== '' && !isAdmin && row.selectedBy !== currentDisplayName) {
-                alert('Access Denied: Only the Admin or the user who originally made this selection can change it.');
+            if (isStaffUser && row.selectedBy !== '' && row.selectedBy !== currentDisplayName) {
+                alert('Access Denied: You cannot change an assignment made by another user.');
                 selectElement.value = row[fieldKey] === '' ? 'None' : row[fieldKey]; // Revert the visual change
                 return;
             }
@@ -680,7 +680,7 @@
             // Check global lock first
             const isGloballyLocked = isPastResetTime(selectedDate) || !isUserAllowedToEdit();
             const currentDisplayName = document.getElementById('userDisplay').textContent;
-            const isAdmin = currentUserEmail === ADMIN_EMAIL;
+            const isStaffUser = currentUserEmail === "staff@gmail.com";
 
             areas.forEach(area => {
                 const headerRow = document.createElement('tr');
@@ -709,15 +709,14 @@
                         // Row-specific security check
                         let isRowLocked = isGloballyLocked;
                         
-                        // If it's not past 18:00, check ownership rules
+                        // If it's not past 18:00, check ownership rules (only restrict staff@gmail.com)
                         if (!isRowLocked && row.selectedBy !== '') {
-                            // If current user is not Admin AND they are not the one who selected it, lock it visually
-                            if (!isAdmin && row.selectedBy !== currentDisplayName) {
+                            if (isStaffUser && row.selectedBy !== currentDisplayName) {
                                 isRowLocked = true;
                             }
                         }
 
-                        const disabledAttr = isRowLocked ? 'disabled title="Restricted to Admin or Original Selector"' : '';
+                        const disabledAttr = isRowLocked ? 'disabled title="Restricted assignment"' : '';
 
                         const anestHtml = `
                             <select ${disabledAttr} onchange="updateDropdown('${row._id}', 'anestheticTeam', this.value, this)">
