@@ -797,10 +797,17 @@
             }
         }
 
-        function exportToCSV() {
+         function exportToCSV() {
             const dateStr = document.getElementById('dateFilter').value || 'schedule';
             const filteredData = scheduleData.filter(row => row.date === dateStr);
             
+            // Convert dateStr (yyyy-mm-dd) to displayDate (dd-mm-yyyy)
+            let displayDate = dateStr;
+            if (dateStr !== 'schedule' && dateStr.includes('-')) {
+                const [year, month, day] = dateStr.split('-');
+                displayDate = `${day}-${month}-${year}`;
+            }
+
             // Add UTF-8 BOM so Excel automatically recognizes Khmer characters
             let csvContent = "\uFEFF"; 
             
@@ -808,7 +815,7 @@
             csvContent += "មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង\n";
             csvContent += "ផ្នែក សល្យាគារ\n";
             csvContent += "កម្មវិធីវះកាត់ប្រចាំថ្ងៃ\n";
-            csvContent += `Date: ${dateStr}\n\n`;
+            csvContent += `Date: ${displayDate}\n\n`; // Uses the new dd-mm-yyyy format
 
             // CSV Headers
             csvContent += "Area,Time,Patient ID,Patient Name,Age,Sex,Room/Bed,Diagnosis,Procedure,Surgeon Team,OR Team\n";
@@ -824,10 +831,10 @@
                         // Standard escape for normal fields
                         const escapeCsv = (val) => `"${String(val).replace(/"/g, '""')}"`;
                         
-                        // SPECIAL FORMAT: Forces Excel to treat the value strictly as text (prevents 7/5 becoming July 5)
+                        // SPECIAL FORMAT: Forces Excel to treat the value strictly as text
                         const forceExcelText = (val) => `="${String(val).replace(/"/g, '""')}"`;
                         
-                        // Map each column individually so we can apply forceExcelText to Room/Bed
+                        // Map each column individually
                         const rowArray = [
                             escapeCsv(area),
                             escapeCsv(row.time),
@@ -835,7 +842,7 @@
                             escapeCsv(row.patientName),
                             escapeCsv(row.age),
                             escapeCsv(row.sex),
-                            forceExcelText(row.roomBed), // <-- Applied the anti-date formatting here
+                            forceExcelText(row.roomBed), // Applied the anti-date formatting here
                             escapeCsv(row.diagnosis),
                             escapeCsv(row.procedure),
                             escapeCsv([row.surgeon, row.assistant].filter(Boolean).join('\n')),
@@ -853,7 +860,8 @@
             const url = URL.createObjectURL(blob);
             
             link.setAttribute("href", url);
-            link.setAttribute("download", `OR_Schedule_${dateStr}.csv`);
+            // Uses the new dd-mm-yyyy format for the downloaded filename as well
+            link.setAttribute("download", `OR_Schedule_${displayDate}.csv`); 
             link.style.visibility = 'hidden';
             
             document.body.appendChild(link);
