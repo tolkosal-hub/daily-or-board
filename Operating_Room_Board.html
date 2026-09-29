@@ -578,7 +578,7 @@ function isCaseInPast(dateStr, timeStr) {
     return now > caseDateTime;
 }
 
-        function updateDropdown(rowId, fieldKey, newValue, selectElement) {
+                function updateDropdown(rowId, fieldKey, newValue, selectElement) {
             const row = scheduleData.find(r => r._id === rowId);
             if (!row) return;
 
@@ -586,27 +586,30 @@ function isCaseInPast(dateStr, timeStr) {
             const isStaffUser = currentUserEmail === "staff@gmail.com";
             const currentDisplayName = document.getElementById('userDisplay').textContent;
             
-            // If the row currently has a team selected
+            // 1. Store previous values for safe rollback if the network fails
+            const previousValue = row[fieldKey] === '' ? 'None' : row[fieldKey];
+            const previousSelectedBy = row.selectedBy;
+            
             const isTeamSelected = row[fieldKey] !== '' && row[fieldKey] !== 'None';
         
             // Constraint 0: Cannot edit past cases
             if (isCaseInPast(row.date, row.time)) {
                 alert('Access Denied: Cannot modify team assignments for past cases.');
-                selectElement.value = row[fieldKey] === '' ? 'None' : row[fieldKey];
+                selectElement.value = previousValue;
                 return;
             }
 
             // Constraint 1: Staff user can never edit
             if (isStaffUser) {
                 alert('Access Denied: Staff cannot modify team assignments.');
-                selectElement.value = row[fieldKey] === '' ? 'None' : row[fieldKey];
+                selectElement.value = previousValue;
                 return;
             }
 
             // Constraint 2: Only allowed editors can make changes
             if (!isUserAllowedToEdit()) {
                 alert('You do not have permission to modify staff assignments.');
-                selectElement.value = row[fieldKey] === '' ? 'None' : row[fieldKey];
+                selectElement.value = previousValue;
                 return;
             }
 
@@ -614,16 +617,20 @@ function isCaseInPast(dateStr, timeStr) {
             if (isTeamSelected) {
                 if (!isAdmin && row.selectedBy !== currentDisplayName) {
                     alert('Access Denied: Only Admin or the user who assigned the team can change it.');
-                    selectElement.value = row[fieldKey] === '' ? 'None' : row[fieldKey];
+                    selectElement.value = previousValue;
                     return;
                 }
             }
 
+            // Apply optimistic update locally
             row[fieldKey] = (newValue === 'None') ? '' : newValue;
             row.selectedBy = currentDisplayName;
 
+            // 2. Lock UI to prevent spam-clicking and race conditions
             const originalBg = selectElement.style.backgroundColor;
             selectElement.style.backgroundColor = '#e8f4fd'; 
+            selectElement.disabled = true; 
+            selectElement.style.cursor = 'wait';
 
             const payload = {
                 __backendId: row.backendId,
@@ -654,6 +661,10 @@ function isCaseInPast(dateStr, timeStr) {
             })
             .then(res => res.json())
             .then(data => {
+                // Unlock UI on success
+                selectElement.disabled = false;
+                selectElement.style.cursor = 'pointer';
+                
                 if (data.status === 'success') {
                     selectElement.style.backgroundColor = '#d4edda'; 
                     setTimeout(() => selectElement.style.backgroundColor = originalBg, 2000);
@@ -670,10 +681,20 @@ function isCaseInPast(dateStr, timeStr) {
             })
             .catch(err => {
                 console.error('Save failed:', err);
-                alert('Failed to save assignment. Please check connection.');
+                alert('Failed to save assignment. Network error.');
+                
+                // 3. Auto-rollback if the save fails
+                selectElement.disabled = false;
+                selectElement.style.cursor = 'pointer';
+                selectElement.value = previousValue;
+                row[fieldKey] = (previousValue === 'None') ? '' : previousValue;
+                row.selectedBy = previousSelectedBy;
+                
                 selectElement.style.backgroundColor = '#f8d7da'; 
+                setTimeout(() => selectElement.style.backgroundColor = originalBg, 3000);
             });
         }
+
 
         function renderTable(selectedDate) {
             tableBody.innerHTML = ''; 
