@@ -443,7 +443,7 @@
             return s.substring(0, 10);
         };
 
-        function fetchSheetData(isSilent = false) {
+         function fetchSheetData(isSilent = false) {
             if (!isSilent) loadingIndicator.style.display = 'inline';
             if (isSilent) {
                 syncIndicator.style.display = 'inline';
@@ -451,89 +451,93 @@
             }
             errorMessage.style.display = 'none';
 
-            fetch(APPS_SCRIPT_URL)
-                .then(response => {
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return response.json();
-                })
-                .then(data => {
-                    let rows = Array.isArray(data) ? data : (data.data || data.records || []);
-                    
-                    scheduleData = rows.map((row, index) => {
-                        const _id = 'row_' + index;
-                        let rowDate = '';
-                        let orTeam = '';
-                        let selectedBy = ''; 
+            // ---> UPDATED FETCH CALL HERE <---
+            fetch(APPS_SCRIPT_URL, {
+                method: 'GET',
+                redirect: 'follow' // Forces the browser to follow Google's internal redirect
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                let rows = Array.isArray(data) ? data : (data.data || data.records || []);
+                
+                scheduleData = rows.map((row, index) => {
+                    const _id = 'row_' + index;
+                    let rowDate = '';
+                    let orTeam = '';
+                    let selectedBy = ''; 
 
-                        if (Array.isArray(row)) {
-                             rowDate = formatDataDate(row[1]);
-                             orTeam = String(row[18] || row[19] || ''); 
-                             selectedBy = String(row[20] || ''); 
-                        } else {
-                             rowDate = formatDataDate(row['Date'] || row['date']);
-                             orTeam = String(row['OR Team'] || row['orTeam'] || row['or_team'] || row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || row['OR Nurse'] || row['orNurse'] || row['or_nurse'] || '');
-                             selectedBy = String(row['Selected By'] || row['selectedBy'] || row['selected_by'] || '');
-                        }
+                    if (Array.isArray(row)) {
+                         rowDate = formatDataDate(row[1]);
+                         orTeam = String(row[18] || row[19] || ''); 
+                         selectedBy = String(row[20] || ''); 
+                    } else {
+                         rowDate = formatDataDate(row['Date'] || row['date']);
+                         orTeam = String(row['OR Team'] || row['orTeam'] || row['or_team'] || row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || row['OR Nurse'] || row['orNurse'] || row['or_nurse'] || '');
+                         selectedBy = String(row['Selected By'] || row['selectedBy'] || row['selected_by'] || '');
+                    }
 
-                        if (orTeam === 'None') orTeam = '';
-                        if (selectedBy === 'None') selectedBy = '';
+                    if (orTeam === 'None') orTeam = '';
+                    if (selectedBy === 'None') selectedBy = '';
 
-                        if (Array.isArray(row)) {
-                             return {
-                                _id: _id,
-                                backendId: String(row[0] || ''),
-                                date: rowDate, 
-                                area: String(row[2] || ''),
-                                time: String(row[3] || ''),
-                                patientId: String(row[4] || ''),
-                                patientName: String(row[5] || ''),
-                                age: String(row[6] || ''),
-                                sex: String(row[7] || ''),
-                                roomBed: String(row[8] || ''),
-                                diagnosis: String(row[9] || ''),
-                                procedure: String(row[10] || ''),
-                                surgeon: String(row[11] || ''),
-                                assistant: String(row[12] || ''),
-                                specialInstruments: String(row[13] || ''),
-                                remark: String(row[14] || ''),
-                                orTeam: orTeam,
-                                selectedBy: selectedBy,
-                                status: String(row[17] || '')
-                             };
-                        } else {
-                             return {
-                                _id: _id,
-                                backendId: String(row['Backend ID'] || row['backend_id'] || row['backendId'] || ''),
-                                date: rowDate,
-                                area: String(row['Area'] || row['area'] || ''),
-                                time: String(row['Time'] || row['time'] || ''),
-                                patientId: String(row['Patient ID'] || row['patientId'] || row['patient_id'] || ''),
-                                patientName: String(row['Patient Name'] || row['patientName'] || row['patient_name'] || ''),
-                                age: String(row['Age'] || row['age'] || ''),
-                                sex: String(row['Sex'] || row['sex'] || ''),
-                                roomBed: String(row['Room/Bed'] || row['roomBed'] || row['room_bed'] || ''),
-                                diagnosis: String(row['Diagnosis'] || row['diagnosis'] || ''),
-                                procedure: String(row['Procedure'] || row['procedure'] || ''),
-                                surgeon: String(row['Surgeon'] || row['surgeon'] || ''),
-                                assistant: String(row['Assistant'] || row['assistant'] || ''),
-                                specialInstruments: String(row['Special Instruments'] || row['specialInstruments'] || row['special_instruments'] || ''),
-                                remark: String(row['Remark'] || row['remark'] || ''),
-                                orTeam: orTeam,
-                                selectedBy: selectedBy,
-                                status: String(row['Status'] || row['status'] || '')
-                            };
-                        }
-                    });
-
-                    loadingIndicator.style.display = 'none';
-                    renderTable(dateFilter.value);
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                    loadingIndicator.style.display = 'none';
-                    errorMessage.style.display = 'block';
-                    errorMessage.innerHTML = `<strong>Error connecting to Google Apps Script.</strong> Details: ${error.message}`;
+                    if (Array.isArray(row)) {
+                         return {
+                            _id: _id,
+                            backendId: String(row[0] || ''),
+                            date: rowDate, 
+                            area: String(row[2] || ''),
+                            time: String(row[3] || ''),
+                            patientId: String(row[4] || ''),
+                            patientName: String(row[5] || ''),
+                            age: String(row[6] || ''),
+                            sex: String(row[7] || ''),
+                            roomBed: String(row[8] || ''),
+                            diagnosis: String(row[9] || ''),
+                            procedure: String(row[10] || ''),
+                            surgeon: String(row[11] || ''),
+                            assistant: String(row[12] || ''),
+                            specialInstruments: String(row[13] || ''),
+                            remark: String(row[14] || ''),
+                            orTeam: orTeam,
+                            selectedBy: selectedBy,
+                            status: String(row[17] || '')
+                         };
+                    } else {
+                         return {
+                            _id: _id,
+                            backendId: String(row['Backend ID'] || row['backend_id'] || row['backendId'] || ''),
+                            date: rowDate,
+                            area: String(row['Area'] || row['area'] || ''),
+                            time: String(row['Time'] || row['time'] || ''),
+                            patientId: String(row['Patient ID'] || row['patientId'] || row['patient_id'] || ''),
+                            patientName: String(row['Patient Name'] || row['patientName'] || row['patient_name'] || ''),
+                            age: String(row['Age'] || row['age'] || ''),
+                            sex: String(row['Sex'] || row['sex'] || ''),
+                            roomBed: String(row['Room/Bed'] || row['roomBed'] || row['room_bed'] || ''),
+                            diagnosis: String(row['Diagnosis'] || row['diagnosis'] || ''),
+                            procedure: String(row['Procedure'] || row['procedure'] || ''),
+                            surgeon: String(row['Surgeon'] || row['surgeon'] || ''),
+                            assistant: String(row['Assistant'] || row['assistant'] || ''),
+                            specialInstruments: String(row['Special Instruments'] || row['specialInstruments'] || row['special_instruments'] || ''),
+                            remark: String(row['Remark'] || row['remark'] || ''),
+                            orTeam: orTeam,
+                            selectedBy: selectedBy,
+                            status: String(row['Status'] || row['status'] || '')
+                        };
+                    }
                 });
+
+                loadingIndicator.style.display = 'none';
+                renderTable(dateFilter.value);
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                loadingIndicator.style.display = 'none';
+                errorMessage.style.display = 'block';
+                errorMessage.innerHTML = `<strong>Error connecting to Google Apps Script.</strong> Details: ${error.message}`;
+            });
         }
 
         db.collection("system").doc("sync_flag").onSnapshot((doc) => {
@@ -655,12 +659,22 @@ function isCaseInPast(dateStr, timeStr) {
                 selected_by: currentDisplayName
             };
 
+                    // ---> ENHANCED FETCH CALL FOR DEBUGGING <---
             fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
+                method: 'GET'
             })
-            .then(res => res.json())
+            .then(async response => {
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error("Google returned this instead of data:", text);
+                    throw new Error("Google returned an HTML login page. You must set Apps Script access to 'Anyone'.");
+                }
+            })
             .then(data => {
+
                 // Unlock UI on success
                 selectElement.disabled = false;
                 selectElement.style.cursor = 'pointer';
