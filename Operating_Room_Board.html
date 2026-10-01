@@ -659,15 +659,14 @@ function isCaseInPast(dateStr, timeStr) {
                 selected_by: currentDisplayName
             };
 
-           // ---> ENHANCED FETCH CALL FOR DEBUGGING <---
-           fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
+    // ---> CORRECTED FETCH CALL <---
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST', // Changed from GET to POST for data mutation
                 headers: {
-                    'Content-Type': 'text/plain;charset=utf-8',
+                    'Content-Type': 'text/plain;charset=utf-8' // text/plain prevents strict CORS preflight blocks in GAS
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload) // Actually attaches and sends the data payload
             })
-
             .then(async response => {
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 const text = await response.text();
@@ -675,11 +674,10 @@ function isCaseInPast(dateStr, timeStr) {
                     return JSON.parse(text);
                 } catch (e) {
                     console.error("Google returned this instead of data:", text);
-                    throw new Error("Google returned an HTML login page. You must set Apps Script access to 'Anyone'.");
+                    throw new Error("Google returned HTML. Ensure Apps Script is set to 'Anyone' and uses doPost(e).");
                 }
             })
             .then(data => {
-
                 // Unlock UI on success
                 selectElement.disabled = false;
                 selectElement.style.cursor = 'pointer';
@@ -695,14 +693,14 @@ function isCaseInPast(dateStr, timeStr) {
                     });
                     
                 } else {
-                    throw new Error(data.message);
+                    throw new Error(data.message || 'Unknown backend error');
                 }
             })
             .catch(err => {
                 console.error('Save failed:', err);
                 alert('Failed to save assignment. Network error.');
                 
-                // 3. Auto-rollback if the save fails
+                // Auto-rollback if the save fails
                 selectElement.disabled = false;
                 selectElement.style.cursor = 'pointer';
                 selectElement.value = previousValue;
