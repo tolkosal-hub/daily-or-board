@@ -664,9 +664,13 @@ function isCaseInPast(dateStr, timeStr) {
                 selected_by: currentDisplayName
             };
 
-                    // ---> ENHANCED FETCH CALL FOR DEBUGGING <---
+              // ---> CORRECTED FETCH CALL (Bypasses strict CORS) <---
             fetch(APPS_SCRIPT_URL, {
-                method: 'GET'
+                method: 'POST',
+                // Purposely omitting the "headers" block. 
+                // This forces the browser to use text/plain automatically, avoiding preflight CORS errors.
+                body: JSON.stringify(payload),
+                redirect: 'follow'
             })
             .then(async response => {
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
@@ -674,17 +678,16 @@ function isCaseInPast(dateStr, timeStr) {
                 try {
                     return JSON.parse(text);
                 } catch (e) {
-                    console.error("Google returned this instead of data:", text);
-                    throw new Error("Google returned an HTML login page. You must set Apps Script access to 'Anyone'.");
+                    console.error("Google response error:", text);
+                    throw new Error("Apps Script failed to return valid JSON. Did you deploy as a New Version?");
                 }
             })
             .then(data => {
-
                 // Unlock UI on success
                 selectElement.disabled = false;
                 selectElement.style.cursor = 'pointer';
                 
-                if (data.status === 'success') {
+                if (data.status === 'success' || data.status === 'added') {
                     selectElement.style.backgroundColor = '#d4edda'; 
                     setTimeout(() => selectElement.style.backgroundColor = originalBg, 2000);
                     
@@ -695,12 +698,12 @@ function isCaseInPast(dateStr, timeStr) {
                     });
                     
                 } else {
-                    throw new Error(data.message);
+                    throw new Error(data.message || "Unknown error from server");
                 }
             })
             .catch(err => {
                 console.error('Save failed:', err);
-                alert('Failed to save assignment. Network error.');
+                alert('Failed to save assignment. Network error or script error.');
                 
                 // 3. Auto-rollback if the save fails
                 selectElement.disabled = false;
