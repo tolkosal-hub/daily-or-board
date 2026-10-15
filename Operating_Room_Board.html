@@ -223,29 +223,117 @@
             margin-bottom: 20px;
             display: none;
         }
-/* Blinking light animation */
-@keyframes flashGreen {
-    0% { opacity: 1; box-shadow: 0 0 8px #27ae60; }
-    50% { opacity: 0.3; box-shadow: none; }
-    100% { opacity: 1; box-shadow: 0 0 8px #27ae60; }
-}
 
-.blinking-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    background-color: #27ae60;
-    border-radius: 50%;
-    margin-right: 6px;
-    vertical-align: middle;
-    animation: flashGreen 1.5s infinite;
-}
+        /* Announcement & Holiday Box Styles */
+        .announcement-box {
+            border: 2px solid #e74c3c;
+            background-color: #fdf2f2;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            position: relative;
+            display: none;
+        }
+        .announcement-title {
+            color: #c0392b;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 0;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .holiday-banner {
+            background-color: #fce4e4;
+            border: 1px dashed #e74c3c;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #c0392b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .announcement-content {
+            font-size: 14px;
+            color: #333;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        .edit-announcement-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #2980b9;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            text-decoration: underline;
+            display: none;
+        }
+        .announcement-edit-area {
+            display: none;
+            margin-top: 10px;
+        }
+        .announcement-edit-area textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        .save-announcement-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .save-announcement-btn:hover { background-color: #c0392b; }
+        .cancel-announcement-btn {
+            background-color: #95a5a6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
 
-.status-in-progress {
-    color: #2980b9;
-    font-weight: bold;
-    white-space: nowrap;
-}
+        /* Blinking light animation */
+        @keyframes flashGreen {
+            0% { opacity: 1; box-shadow: 0 0 8px #27ae60; }
+            50% { opacity: 0.3; box-shadow: none; }
+            100% { opacity: 1; box-shadow: 0 0 8px #27ae60; }
+        }
+
+        .blinking-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: #27ae60;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+            animation: flashGreen 1.5s infinite;
+        }
+
+        .status-in-progress {
+            color: #2980b9;
+            font-weight: bold;
+            white-space: nowrap;
+        }
 
     </style>
 
@@ -302,6 +390,11 @@
                             userDisplay.textContent = displayName;
                         }
                         
+                        // Update announcement visibility based on current user role
+                        if (typeof updateAnnouncementBox === 'function') {
+                            updateAnnouncementBox();
+                        }
+
                         if (typeof renderTable === 'function' && dateFilter.value) {
                             renderTable(dateFilter.value);
                         }
@@ -357,6 +450,28 @@
             <h1>កម្មវិធីវះកាត់ប្រចាំថ្ងៃ</h1>
         </div>
 
+        <!-- Announcement / Holiday Box -->
+        <div id="announcementBox" class="announcement-box">
+            <button id="editAnnouncementBtn" class="edit-announcement-btn" onclick="toggleAnnouncementEdit()">Edit Info</button>
+            <div class="announcement-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                Announcement / Public Holiday
+            </div>
+            
+            <!-- Dynamic Public Holiday Indicator -->
+            <div id="holidayBanner" class="holiday-banner" style="display: none;"></div>
+
+            <div id="announcementDisplay" class="announcement-content"></div>
+            
+            <div id="announcementEditArea" class="announcement-edit-area">
+                <textarea id="announcementInput" placeholder="Type announcements or instructions here..."></textarea>
+                <div>
+                    <button class="save-announcement-btn" onclick="saveAnnouncement()">Save</button>
+                    <button class="cancel-announcement-btn" onclick="toggleAnnouncementEdit()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
         <div style="overflow-x:auto;">
             <table id="orTable">
                 <thead>
@@ -391,15 +506,44 @@
         const errorMessage = document.getElementById('errorMessage');
 
         let scheduleData = [];
+        let currentAnnouncementText = "";
         const areas = ['OTS1', 'OTS2', 'OTS3'];
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrk6OuH81kLg4H0CA8j2mXxvYk3C1Ag-nLO09VUvM0BteaU5spvNRDtzTpDtXYkzo/exec';
 
         const tabClientId = Math.random().toString(36).substring(2, 15);
 
-        // -> PLACE YOUR BASE64 FONT STRING HERE <-
-        // If you don't have it yet, leave it as an empty string "" to prevent crashes.
-        const fontBase64 = ""; 
+        // Public Holidays List
+        const publicHolidays = {
+            "2026-01-01": "បុណ្យចូលឆ្នាំសកល ២០២៦",
+            "2026-01-07": "ទិវាជ័យជម្នះលើរបបប្រល័យពូជសាសន៍",
+            "2026-03-08": "ទិវាសិទ្ធិនារីអន្តរជាតិ",
+            "2026-04-14": "បុណ្យចូលឆ្នាំខ្មែរ ឆ្នាំមមី",
+            "2026-04-15": "បុណ្យចូលឆ្នាំខ្មែរ ឆ្នាំមមី",
+            "2026-04-16": "បុណ្យចូលឆ្នាំខ្មែរ ឆ្នាំមមី",
+            "2026-05-01": "ទិវាពលកម្មអន្តរជាតិ បុណ្យវិសាខបូជា",
+            "2026-05-05": "ព្រះរាជពិធីបុណ្យច្រត់ព្រះនង្គ័ល",
+            "2026-05-14": "ព្រះរាជពិធីបុណ្យចម្រើនព្រះជន្មព្រះមហាក្សត្រ",
+            "2026-06-18": "ព្រះរាជពិធីបុណ្យចម្រើនព្រះជន្មព្រះមហាក្សត្រីយានី",
+            "2026-09-24": "ទិវាប្រកាសរដ្ឋធម្មនុញ្ញ",
+            "2026-10-10": "ពិធីបុណ្យភ្ជុំបិណ្ឌ",
+            "2026-10-11": "ពិធីបុណ្យភ្ជុំបិណ្ឌ",
+            "2026-10-12": "ពិធីបុណ្យភ្ជុំបិណ្ឌ",
+            "2026-10-15": "ទិវាគោរពព្រះវិញ្ញាណក្ខន្ធព្រះបរមរតនកោដ្ឋ",
+            "2026-10-29": "ព្រះរាជពិធីគ្រងរាជសម្បត្តិ",
+            "2026-11-09": "ពិធីបុណ្យឯករាជ្យជាតិ",
+            "2026-11-23": "បុណ្យអុំទូក បណ្តែតប្រទីប និងសំពះព្រះខែអកអំបុក",
+            "2026-11-24": "បុណ្យអុំទូក បណ្តែតប្រទីប និងសំពះព្រះខែអកអំបុក",
+            "2026-11-25": "បុណ្យអុំទូក បណ្តែតប្រទីប និងសំពះព្រះខែអកអំបុក",
+            "2026-12-29": "ទិវាសន្តិភាពនៅកម្ពុជា",
+            "2027-01-01": "បុណ្យចូលឆ្នាំសកល ២០២៧",
+            "2027-01-07": "ទិវាជ័យជម្នះលើរបបប្រល័យពូជសាសន៍",
+            "2027-03-08": "ទិវាសិទ្ធិនារីអន្តរជាតិ",
+            "2027-04-14": "បុណ្យចូលឆ្នាំខ្មែរ ឆ្នាំមមែ",
+            "2027-04-15": "បុណ្យចូលឆ្នាំខ្មែរ ឆ្នាំមមែ"
+        };
 
+        // -> PLACE YOUR BASE64 FONT STRING HERE <-
+        const fontBase64 = ""; 
 
         const allowedEditors = [
             "admin@gmail.com",
@@ -448,7 +592,7 @@
             return s.substring(0, 10);
         };
 
-         function fetchSheetData(isSilent = false) {
+        function fetchSheetData(isSilent = false) {
             if (!isSilent) loadingIndicator.style.display = 'inline';
             if (isSilent) {
                 syncIndicator.style.display = 'inline';
@@ -456,10 +600,9 @@
             }
             errorMessage.style.display = 'none';
 
-            // ---> UPDATED FETCH CALL HERE <---
             fetch(APPS_SCRIPT_URL, {
                 method: 'GET',
-                redirect: 'follow' // Forces the browser to follow Google's internal redirect
+                redirect: 'follow'
             })
             .then(response => {
                 if (!response.ok) throw new Error('Network response was not ok');
@@ -559,35 +702,115 @@
             }
         });
 
-// Helper function to check if a case is in the past
-function isCaseInPast(dateStr, timeStr) {
-    if (!dateStr || !timeStr) return false;
-    
-    const now = new Date();
-    const [year, month, day] = dateStr.split('-').map(Number);
-    
-    // Extract hours and minutes (supports "HH:MM", "HH:MM AM", "HH:MM PM")
-    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?/);
-    
-    if (!timeMatch) {
-        // Fallback: If time string format is unknown, lock only if the whole day has passed
-        const caseDateObj = new Date(year, month - 1, day, 23, 59, 59);
-        return now > caseDateObj;
-    }
+        // --- ANNOUNCEMENT & HOLIDAY LOGIC ---
+        function updateAnnouncementBox() {
+            const box = document.getElementById('announcementBox');
+            const display = document.getElementById('announcementDisplay');
+            const holidayBanner = document.getElementById('holidayBanner');
+            const editBtn = document.getElementById('editAnnouncementBtn');
+            const selectedDate = dateFilter.value;
+            
+            const isAdmin = (currentUserEmail === "admin@gmail.com");
+            editBtn.style.display = isAdmin ? 'block' : 'none';
 
-    let hours = parseInt(timeMatch[1], 10);
-    const minutes = parseInt(timeMatch[2], 10);
-    const modifier = timeMatch[3] ? timeMatch[3].toUpperCase() : null;
+            // Check if current date is a holiday
+            const holidayName = publicHolidays[selectedDate];
+            if (holidayName) {
+                holidayBanner.innerHTML = `🇰🇭 <strong>ថ្ងៃឈប់សម្រាកបុណ្យជាតិ~អន្តរជាតិ (Public Holiday):</strong> ${holidayName}`;
+                holidayBanner.style.display = 'flex';
+            } else {
+                holidayBanner.style.display = 'none';
+                holidayBanner.innerHTML = '';
+            }
 
-    // Convert to 24-hour format if AM/PM is present
-    if (modifier === 'PM' && hours < 12) hours += 12;
-    if (modifier === 'AM' && hours === 12) hours = 0;
+            // Custom announcement text
+            display.textContent = currentAnnouncementText;
 
-    const caseDateTime = new Date(year, month - 1, day, hours, minutes);
-    return now > caseDateTime;
-}
+            // Show box if holiday exists, custom announcement exists, or if admin is logged in
+            if (holidayName || currentAnnouncementText.trim() !== "" || isAdmin) {
+                box.style.display = "block";
+            } else {
+                box.style.display = "none";
+            }
+        }
 
-                function updateDropdown(rowId, fieldKey, newValue, selectElement) {
+        // Listen to Firestore for custom announcements
+        db.collection("system").doc("announcement").onSnapshot((doc) => {
+            currentAnnouncementText = doc.exists ? (doc.data().text || "") : "";
+            document.getElementById('announcementInput').value = currentAnnouncementText;
+            updateAnnouncementBox();
+        });
+
+        function toggleAnnouncementEdit() {
+            const display = document.getElementById('announcementDisplay');
+            const editArea = document.getElementById('announcementEditArea');
+            const editBtn = document.getElementById('editAnnouncementBtn');
+            
+            if (editArea.style.display === "block") {
+                editArea.style.display = "none";
+                display.style.display = "block";
+                editBtn.style.display = "block";
+            } else {
+                editArea.style.display = "block";
+                display.style.display = "none";
+                editBtn.style.display = "none";
+            }
+        }
+
+        function saveAnnouncement() {
+            if (currentUserEmail !== "admin@gmail.com") {
+                alert("Only administrators can update the announcement.");
+                return;
+            }
+            
+            const newText = document.getElementById('announcementInput').value;
+            const btn = document.querySelector('.save-announcement-btn');
+            const originalText = btn.textContent;
+            
+            btn.textContent = 'Saving...';
+            btn.disabled = true;
+            
+            db.collection("system").doc("announcement").set({
+                text: newText,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: currentUserEmail
+            }).then(() => {
+                toggleAnnouncementEdit();
+            }).catch((error) => {
+                console.error("Error saving announcement: ", error);
+                alert("Failed to save announcement.");
+            }).finally(() => {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            });
+        }
+
+        // Helper function to check if a case is in the past
+        function isCaseInPast(dateStr, timeStr) {
+            if (!dateStr || !timeStr) return false;
+            
+            const now = new Date();
+            const [year, month, day] = dateStr.split('-').map(Number);
+            
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?/);
+            
+            if (!timeMatch) {
+                const caseDateObj = new Date(year, month - 1, day, 23, 59, 59);
+                return now > caseDateObj;
+            }
+
+            let hours = parseInt(timeMatch[1], 10);
+            const minutes = parseInt(timeMatch[2], 10);
+            const modifier = timeMatch[3] ? timeMatch[3].toUpperCase() : null;
+
+            if (modifier === 'PM' && hours < 12) hours += 12;
+            if (modifier === 'AM' && hours === 12) hours = 0;
+
+            const caseDateTime = new Date(year, month - 1, day, hours, minutes);
+            return now > caseDateTime;
+        }
+
+        function updateDropdown(rowId, fieldKey, newValue, selectElement) {
             const row = scheduleData.find(r => r._id === rowId);
             if (!row) return;
 
@@ -595,34 +818,28 @@ function isCaseInPast(dateStr, timeStr) {
             const isStaffUser = currentUserEmail === "staff@gmail.com";
             const currentDisplayName = document.getElementById('userDisplay').textContent;
             
-            // 1. Store previous values for safe rollback if the network fails
             const previousValue = row[fieldKey] === '' ? 'None' : row[fieldKey];
             const previousSelectedBy = row.selectedBy;
-            
             const isTeamSelected = row[fieldKey] !== '' && row[fieldKey] !== 'None';
         
-            // Constraint 0: Cannot edit past cases
             if (isCaseInPast(row.date, row.time)) {
                 alert('Access Denied: Cannot modify team assignments for past cases.');
                 selectElement.value = previousValue;
                 return;
             }
 
-            // Constraint 1: Staff user can never edit
             if (isStaffUser) {
                 alert('Access Denied: Staff cannot modify team assignments.');
                 selectElement.value = previousValue;
                 return;
             }
 
-            // Constraint 2: Only allowed editors can make changes
             if (!isUserAllowedToEdit()) {
                 alert('You do not have permission to modify staff assignments.');
                 selectElement.value = previousValue;
                 return;
             }
 
-            // Constraint 3: If a team is ALREADY selected, only Admin or the original selector can change it
             if (isTeamSelected) {
                 if (!isAdmin && row.selectedBy !== currentDisplayName) {
                     alert('Access Denied: Only Admin or the user who assigned the team can change it.');
@@ -631,11 +848,9 @@ function isCaseInPast(dateStr, timeStr) {
                 }
             }
 
-            // Apply optimistic update locally
             row[fieldKey] = (newValue === 'None') ? '' : newValue;
             row.selectedBy = currentDisplayName;
 
-            // 2. Lock UI to prevent spam-clicking and race conditions
             const originalBg = selectElement.style.backgroundColor;
             selectElement.style.backgroundColor = '#e8f4fd'; 
             selectElement.disabled = true; 
@@ -664,11 +879,8 @@ function isCaseInPast(dateStr, timeStr) {
                 selected_by: currentDisplayName
             };
 
-              // ---> CORRECTED FETCH CALL (Bypasses strict CORS) <---
             fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
-                // Purposely omitting the "headers" block. 
-                // This forces the browser to use text/plain automatically, avoiding preflight CORS errors.
                 body: JSON.stringify(payload),
                 redirect: 'follow'
             })
@@ -683,7 +895,6 @@ function isCaseInPast(dateStr, timeStr) {
                 }
             })
             .then(data => {
-                // Unlock UI on success
                 selectElement.disabled = false;
                 selectElement.style.cursor = 'pointer';
                 
@@ -696,7 +907,6 @@ function isCaseInPast(dateStr, timeStr) {
                         updated_by: currentUserEmail,
                         client_id: tabClientId 
                     });
-                    
                 } else {
                     throw new Error(data.message || "Unknown error from server");
                 }
@@ -705,7 +915,6 @@ function isCaseInPast(dateStr, timeStr) {
                 console.error('Save failed:', err);
                 alert('Failed to save assignment. Network error or script error.');
                 
-                // 3. Auto-rollback if the save fails
                 selectElement.disabled = false;
                 selectElement.style.cursor = 'pointer';
                 selectElement.value = previousValue;
@@ -716,7 +925,6 @@ function isCaseInPast(dateStr, timeStr) {
                 setTimeout(() => selectElement.style.backgroundColor = originalBg, 3000);
             });
         }
-
 
         function renderTable(selectedDate) {
             tableBody.innerHTML = ''; 
@@ -747,39 +955,35 @@ function isCaseInPast(dateStr, timeStr) {
                         const tr = document.createElement('tr');
                         
                         let statusClass = '';
-let statusHtml = row.status; // Default to just the text
-const statusVal = row.status.trim().toLowerCase();
+                        let statusHtml = row.status; 
+                        const statusVal = row.status.trim().toLowerCase();
 
-if (statusVal === 'finished') {
-    statusClass = 'status-finished';
-} else if (statusVal === 'pending') {
-    statusClass = 'status-pending';
-} else if (statusVal === 'in progress') {
-    statusClass = 'status-in-progress';
-    statusHtml = `<span class="blinking-dot"></span>${row.status}`;
-}
-
+                        if (statusVal === 'finished') {
+                            statusClass = 'status-finished';
+                        } else if (statusVal === 'pending') {
+                            statusClass = 'status-pending';
+                        } else if (statusVal === 'in progress') {
+                            statusClass = 'status-in-progress';
+                            statusHtml = `<span class="blinking-dot"></span>${row.status}`;
+                        }
 
                         let isRowLocked = false;
-const isTeamSelected = row.orTeam !== '' && row.orTeam !== 'None';
-const pastCase = isCaseInPast(row.date, row.time);
+                        const isTeamSelected = row.orTeam !== '' && row.orTeam !== 'None';
+                        const pastCase = isCaseInPast(row.date, row.time);
 
-// Apply locking logic based on rules
-if (pastCase) {
-    isRowLocked = true; // Lock for EVERYONE if the date and time have passed
-} else if (isStaffUser) {
-    isRowLocked = true; // Staff can never edit
-} else if (!isUserAllowedToEdit()) {
-    isRowLocked = true; // Non-editors cannot edit
-} else if (isTeamSelected) {
-    // If a team is assigned, only Admin or the original selector can change it
-    if (!isAdmin && row.selectedBy !== currentDisplayName) {
-        isRowLocked = true;
-    }
-}
+                        if (pastCase) {
+                            isRowLocked = true;
+                        } else if (isStaffUser) {
+                            isRowLocked = true;
+                        } else if (!isUserAllowedToEdit()) {
+                            isRowLocked = true;
+                        } else if (isTeamSelected) {
+                            if (!isAdmin && row.selectedBy !== currentDisplayName) {
+                                isRowLocked = true;
+                            }
+                        }
 
-
-             const disabledAttr = isRowLocked ? 'disabled title="Restricted assignment"' : '';
+                        const disabledAttr = isRowLocked ? 'disabled title="Restricted assignment"' : '';
 
                         const surgeonTeamHtml = `
                             <div class="surgeon-team-container">
@@ -823,114 +1027,108 @@ if (pastCase) {
         }
 
         function exportToPDF() {
-    const btn = document.getElementById('exportPdfBtn');
-    const originalContent = btn.innerHTML;
-    btn.innerHTML = 'Generating...';
-    btn.disabled = true;
+            const btn = document.getElementById('exportPdfBtn');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = 'Generating...';
+            btn.disabled = true;
 
-    try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('l', 'pt', 'a4'); 
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'pt', 'a4'); 
 
-        // Only add font if defined and not empty
-        if (typeof fontBase64 !== 'undefined' && fontBase64.trim() !== "") {
-            doc.addFileToVFS('KhmerFont.ttf', fontBase64);
-            doc.addFont('KhmerFont.ttf', 'KhmerFont', 'normal');
-            doc.setFont('KhmerFont');
+                if (typeof fontBase64 !== 'undefined' && fontBase64.trim() !== "") {
+                    doc.addFileToVFS('KhmerFont.ttf', fontBase64);
+                    doc.addFont('KhmerFont.ttf', 'KhmerFont', 'normal');
+                    doc.setFont('KhmerFont');
+                }
+
+                const dateStr = document.getElementById('dateFilter').value || 'schedule';
+
+                doc.setFontSize(16);
+                doc.text("Battambang Provincial Referral Hospital", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+                doc.setFontSize(14);
+                doc.text("Operating Theatre - Daily Surgery Schedule", doc.internal.pageSize.getWidth() / 2, 60, { align: 'center' });
+                doc.setFontSize(11);
+                doc.text(`Date: ${dateStr}`, doc.internal.pageSize.getWidth() / 2, 80, { align: 'center' });
+
+                const filteredData = scheduleData.filter(row => row.date === dateStr);
+                let tableRows = [];
+
+                areas.forEach(area => {
+                    let areaData = filteredData.filter(row => row.area === area);
+                    
+                    tableRows.push([{ content: area, colSpan: 13, styles: { halign: 'center', fillColor: [189, 195, 199], textColor: [44, 62, 80], fontStyle: 'bold' } }]);
+                    
+                    if (areaData.length === 0) {
+                        tableRows.push([{ content: `No surgeries scheduled in ${area}.`, colSpan: 13, styles: { halign: 'center', fontStyle: 'italic', textColor: [127, 140, 141] } }]);
+                    } else {
+                        areaData.sort((a, b) => a.time.localeCompare(b.time));
+                        areaData.forEach(row => {
+                            tableRows.push([
+                                row.time, row.patientId, row.patientName, row.age, row.sex, row.roomBed,
+                                row.diagnosis, row.procedure, [row.surgeon, row.assistant].filter(Boolean).join('\n'), row.specialInstruments,
+                                row.remark, row.orTeam || 'None', row.status
+                            ]);
+                        });
+                    }
+                });
+
+                doc.autoTable({
+                    head: [['Time', 'ID', 'Name', 'Age', 'Sex', 'Room/Bed', 'Diagnosis', 'Procedure', 'Surgeon Team', 'Instruments', 'Remark', 'OR Team', 'Status']],
+                    body: tableRows,
+                    startY: 95,
+                    styles: { 
+                        font: (typeof fontBase64 !== 'undefined' && fontBase64.trim() !== "") ? 'KhmerFont' : 'helvetica', 
+                        fontSize: 8, 
+                        cellPadding: 4, 
+                        lineWidth: 0.5, 
+                        lineColor: [0, 0, 0] 
+                    },
+                    headStyles: { 
+                        fillColor: [52, 73, 94], 
+                        textColor: 255, 
+                        halign: 'center',
+                        fontStyle: 'normal'
+                    },
+                    didParseCell: function(data) {
+                        if (data.section === 'body' && data.column.index === 2 && fontBase64.trim() !== "") {
+                            data.cell.styles.font = 'KhmerFont';
+                        }
+                    },
+                    theme: 'grid',
+                    margin: { top: 30, right: 20, bottom: 30, left: 20 }
+                });
+
+                doc.save(`OR_Schedule_${dateStr}.pdf`);
+                
+            } catch (err) {
+                console.error("PDF generation error: ", err);
+                alert("Failed to export PDF. Check console for details.");
+            } finally {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
         }
 
-        const dateStr = document.getElementById('dateFilter').value || 'schedule';
-
-        doc.setFontSize(16);
-        doc.text("Battambang Provincial Referral Hospital", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
-        doc.setFontSize(14);
-        doc.text("Operating Theatre - Daily Surgery Schedule", doc.internal.pageSize.getWidth() / 2, 60, { align: 'center' });
-        doc.setFontSize(11);
-        doc.text(`Date: ${dateStr}`, doc.internal.pageSize.getWidth() / 2, 80, { align: 'center' });
-
-        const filteredData = scheduleData.filter(row => row.date === dateStr);
-        let tableRows = [];
-
-        areas.forEach(area => {
-            let areaData = filteredData.filter(row => row.area === area);
-            
-            tableRows.push([{ content: area, colSpan: 13, styles: { halign: 'center', fillColor: [189, 195, 199], textColor: [44, 62, 80], fontStyle: 'bold' } }]);
-            
-            if (areaData.length === 0) {
-                tableRows.push([{ content: `No surgeries scheduled in ${area}.`, colSpan: 13, styles: { halign: 'center', fontStyle: 'italic', textColor: [127, 140, 141] } }]);
-            } else {
-                areaData.sort((a, b) => a.time.localeCompare(b.time));
-                areaData.forEach(row => {
-                    tableRows.push([
-                        row.time, row.patientId, row.patientName, row.age, row.sex, row.roomBed,
-                        row.diagnosis, row.procedure, [row.surgeon, row.assistant].filter(Boolean).join('\n'), row.specialInstruments,
-                        row.remark, row.orTeam || 'None', row.status
-                    ]);
-                });
-            }
-        });
-
-        doc.autoTable({
-            head: [['Time', 'ID', 'Name', 'Age', 'Sex', 'Room/Bed', 'Diagnosis', 'Procedure', 'Surgeon Team', 'Instruments', 'Remark', 'OR Team', 'Status']],
-            body: tableRows,
-            startY: 95,
-            styles: { 
-                font: (typeof fontBase64 !== 'undefined' && fontBase64.trim() !== "") ? 'KhmerFont' : 'helvetica', 
-                fontSize: 8, 
-                cellPadding: 4, 
-                lineWidth: 0.5, 
-                lineColor: [0, 0, 0] 
-            },
-            headStyles: { 
-                fillColor: [52, 73, 94], 
-                textColor: 255, 
-                halign: 'center',
-                fontStyle: 'normal'
-            },
-            didParseCell: function(data) {
-                if (data.section === 'body' && data.column.index === 2 && fontBase64.trim() !== "") {
-                    data.cell.styles.font = 'KhmerFont';
-                }
-            },
-            theme: 'grid',
-            margin: { top: 30, right: 20, bottom: 30, left: 20 }
-        });
-
-        doc.save(`OR_Schedule_${dateStr}.pdf`);
-        
-    } catch (err) {
-        console.error("PDF generation error: ", err);
-        alert("Failed to export PDF. Check console for details.");
-    } finally {
-        btn.innerHTML = originalContent;
-        btn.disabled = false;
-    }
-}
-
-         function exportToCSV() {
+        function exportToCSV() {
             const dateStr = document.getElementById('dateFilter').value || 'schedule';
             const filteredData = scheduleData.filter(row => row.date === dateStr);
             
-            // Convert dateStr (yyyy-mm-dd) to displayDate (dd-mm-yyyy)
             let displayDate = dateStr;
             if (dateStr !== 'schedule' && dateStr.includes('-')) {
                 const [year, month, day] = dateStr.split('-');
                 displayDate = `${day}-${month}-${year}`;
             }
 
-            // Add UTF-8 BOM so Excel automatically recognizes Khmer characters
             let csvContent = "\uFEFF"; 
             
-            // --- TABLE TITLES ---
             csvContent += "មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង\n";
             csvContent += "ផ្នែក សល្យាគារ\n";
             csvContent += "កម្មវិធីវះកាត់ប្រចាំថ្ងៃ\n";
-            csvContent += `Date: ${displayDate}\n\n`; // Uses the new dd-mm-yyyy format
+            csvContent += `Date: ${displayDate}\n\n`;
 
-            // CSV Headers
             csvContent += "Area,Time,Patient ID,Patient Name,Age,Sex,Room/Bed,Diagnosis,Procedure,Surgeon Team,OR Team\n";
 
-            // Loop through areas to maintain the same grouping as the visual table
             areas.forEach(area => {
                 let areaData = filteredData.filter(row => row.area === area);
                 
@@ -938,13 +1136,9 @@ if (pastCase) {
                     areaData.sort((a, b) => a.time.localeCompare(b.time));
                     
                     areaData.forEach(row => {
-                        // Standard escape for normal fields
                         const escapeCsv = (val) => `"${String(val).replace(/"/g, '""')}"`;
-                        
-                        // SPECIAL FORMAT: Forces Excel to treat the value strictly as text
                         const forceExcelText = (val) => `="${String(val).replace(/"/g, '""')}"`;
                         
-                        // Map each column individually
                         const rowArray = [
                             escapeCsv(area),
                             escapeCsv(row.time),
@@ -952,7 +1146,7 @@ if (pastCase) {
                             escapeCsv(row.patientName),
                             escapeCsv(row.age),
                             escapeCsv(row.sex),
-                            forceExcelText(row.roomBed), // Applied the anti-date formatting here
+                            forceExcelText(row.roomBed),
                             escapeCsv(row.diagnosis),
                             escapeCsv(row.procedure),
                             escapeCsv([row.surgeon, row.assistant].filter(Boolean).join('\n')),
@@ -964,13 +1158,11 @@ if (pastCase) {
                 }
             });
 
-            // Create and trigger download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             
             link.setAttribute("href", url);
-            // Uses the new dd-mm-yyyy format for the downloaded filename as well
             link.setAttribute("download", `OR_Schedule_${displayDate}.csv`); 
             link.style.visibility = 'hidden';
             
@@ -980,6 +1172,7 @@ if (pastCase) {
         }
 
         dateFilter.addEventListener('change', (e) => {
+            updateAnnouncementBox();
             renderTable(e.target.value);
         });
 
