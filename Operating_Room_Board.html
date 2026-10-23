@@ -619,7 +619,7 @@
 
                     if (Array.isArray(row)) {
                          rowDate = formatDataDate(row[1]);
-                         orTeam = String(row[18] || row[19] || ''); 
+                         orTeam = String(row[19] || ''); 
                          selectedBy = String(row[20] || ''); 
                     } else {
                          rowDate = formatDataDate(row['Date'] || row['date']);
@@ -642,15 +642,15 @@
                             age: String(row[6] || ''),
                             sex: String(row[7] || ''),
                             roomBed: String(row[8] || ''),
-                            diagnosis: String(row[9] || ''),
-                            procedure: String(row[10] || ''),
-                            surgeon: String(row[11] || ''),
-                            assistant: String(row[12] || ''),
-                            specialInstruments: String(row[13] || ''),
-                            remark: String(row[14] || ''),
+                            diagnosis: String(row[10] || ''),
+                            procedure: String(row[11] || ''),
+                            surgeon: String(row[12] || ''),
+                            assistant: String(row[13] || ''),
+                            specialInstruments: String(row[14] || ''),
+                            remark: String(row[15] || ''),
                             orTeam: orTeam,
                             selectedBy: selectedBy,
-                            status: String(row[17] || '')
+                            status: String(row[18] || '')
                          };
                     } else {
                          return {
