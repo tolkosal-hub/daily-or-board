@@ -710,8 +710,9 @@
             const editBtn = document.getElementById('editAnnouncementBtn');
             const selectedDate = dateFilter.value;
             
-            const isAdmin = (currentUserEmail === "admin@gmail.com");
-            editBtn.style.display = isAdmin ? 'block' : 'none';
+            // Only primary admin can edit announcements
+            const isPrimaryAdmin = (currentUserEmail === "admin@gmail.com");
+            editBtn.style.display = isPrimaryAdmin ? 'block' : 'none';
 
             // Check if current date is a holiday
             const holidayName = publicHolidays[selectedDate];
@@ -726,8 +727,8 @@
             // Custom announcement text
             display.textContent = currentAnnouncementText;
 
-            // Show box if holiday exists, custom announcement exists, or if admin is logged in
-            if (holidayName || currentAnnouncementText.trim() !== "" || isAdmin) {
+            // Show box if holiday exists, custom announcement exists, or if primary admin is logged in
+            if (holidayName || currentAnnouncementText.trim() !== "" || isPrimaryAdmin) {
                 box.style.display = "block";
             } else {
                 box.style.display = "none";
@@ -759,7 +760,7 @@
 
         function saveAnnouncement() {
             if (currentUserEmail !== "admin@gmail.com") {
-                alert("Only administrators can update the announcement.");
+                alert("Only the primary administrator can update the announcement.");
                 return;
             }
             
@@ -814,7 +815,8 @@
             const row = scheduleData.find(r => r._id === rowId);
             if (!row) return;
 
-            const isAdmin = currentUserEmail === "admin@gmail.com";
+            // Primary admin or team-override admins can override any assignment
+            const canOverrideTeam = (currentUserEmail === "admin@gmail.com" || currentUserEmail === "huotsocheat@gmail.com" || currentUserEmail === "daramao35@gmail.com");
             const isStaffUser = currentUserEmail === "staff@gmail.com";
             const currentDisplayName = document.getElementById('userDisplay').textContent;
             
@@ -841,8 +843,8 @@
             }
 
             if (isTeamSelected) {
-                if (!isAdmin && row.selectedBy !== currentDisplayName) {
-                    alert('Access Denied: Only Admin or the user who assigned the team can change it.');
+                if (!canOverrideTeam && row.selectedBy !== currentDisplayName) {
+                    alert('Access Denied: Only authorized administrators or the user who assigned the team can change it.');
                     selectElement.value = previousValue;
                     return;
                 }
@@ -931,7 +933,7 @@
             
             const filteredData = scheduleData.filter(row => row.date === selectedDate);
             
-            const isAdmin = currentUserEmail === "admin@gmail.com";
+            const canOverrideTeam = (currentUserEmail === "admin@gmail.com" || currentUserEmail === "huotsocheat@gmail.com" || currentUserEmail === "daramao35@gmail.com");
             const isStaffUser = currentUserEmail === "staff@gmail.com";
             const currentDisplayName = document.getElementById('userDisplay').textContent;
 
@@ -978,7 +980,7 @@
                         } else if (!isUserAllowedToEdit()) {
                             isRowLocked = true;
                         } else if (isTeamSelected) {
-                            if (!isAdmin && row.selectedBy !== currentDisplayName) {
+                            if (!canOverrideTeam && row.selectedBy !== currentDisplayName) {
                                 isRowLocked = true;
                             }
                         }
