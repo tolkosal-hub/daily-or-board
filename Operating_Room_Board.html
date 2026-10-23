@@ -12,9 +12,10 @@
             background-color: #f4f7f6;
             color: #333;
         }
+        
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             padding-top: 10px; 
         }
         .header h1 {
@@ -28,6 +29,69 @@
             font-weight: normal;
             color: #555;
         }
+
+        /* Live Overview Box Styles below title */
+        .live-stats-box {
+            background: #ffffff;
+            border: 1px solid #dcdde1;
+            border-radius: 8px;
+            padding: 10px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            margin: 15px auto 25px auto;
+            max-width: 780px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .stats-badge-live {
+            display: inline-flex;
+            align-items: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #27ae60;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            gap: 6px;
+            padding-right: 15px;
+            border-right: 1px solid #ecf0f1;
+        }
+        .live-pill-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #27ae60;
+            border-radius: 50%;
+            display: inline-block;
+            animation: flashGreen 1.5s infinite;
+        }
+        .stats-items-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            flex: 1;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+        .stat-label {
+            color: #555;
+            font-weight: 500;
+        }
+        .stat-value {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .val-occupied { color: #2980b9; }
+        .val-pending { color: #f39c12; }
+        .val-finished { color: #27ae60; }
+        .val-cancelled { color: #e74c3c; }
+
         .controls {
             margin-bottom: 20px;
             display: flex;
@@ -179,7 +243,6 @@
             border-color: #ced4da;
         }
         
-        /* Centered Surgeon Team Styles */
         .surgeon-team-container {
             display: flex;
             flex-direction: column;
@@ -207,6 +270,10 @@
         }
         .status-pending {
             color: #f39c12;
+            font-weight: bold;
+        }
+        .status-cancelled {
+            color: #e74c3c;
             font-weight: bold;
         }
         .no-data {
@@ -334,7 +401,6 @@
             font-weight: bold;
             white-space: nowrap;
         }
-
     </style>
 
     <!-- Firebase App, Auth, & Firestore SDKs -->
@@ -390,7 +456,6 @@
                             userDisplay.textContent = displayName;
                         }
                         
-                        // Update announcement visibility based on current user role
                         if (typeof updateAnnouncementBox === 'function') {
                             updateAnnouncementBox();
                         }
@@ -448,6 +513,32 @@
             <h2>មន្ទីរពេទ្យបង្អែកខេត្តបាត់ដំបង</h2>
             <h2>ផ្នែក សល្យាគារ</h2>
             <h1>កម្មវិធីវះកាត់ប្រចាំថ្ងៃ</h1>
+
+            <!-- Live Stats Summary Box placed directly below title -->
+            <div class="live-stats-box">
+                <div class="stats-badge-live">
+                    <span class="live-pill-dot"></span>
+                    <span>Live Status</span>
+                </div>
+                <div class="stats-items-row">
+                    <div class="stat-item">
+                        <span class="stat-label">Occupied Rooms:</span>
+                        <span id="statOccupied" class="stat-value val-occupied">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Pending Cases:</span>
+                        <span id="statPending" class="stat-value val-pending">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Finished Cases:</span>
+                        <span id="statFinished" class="stat-value val-finished">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cancelled Cases:</span>
+                        <span id="statCancelled" class="stat-value val-cancelled">0</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Announcement / Holiday Box -->
@@ -458,9 +549,7 @@
                 Announcement / Public Holiday
             </div>
             
-            <!-- Dynamic Public Holiday Indicator -->
             <div id="holidayBanner" class="holiday-banner" style="display: none;"></div>
-
             <div id="announcementDisplay" class="announcement-content"></div>
             
             <div id="announcementEditArea" class="announcement-edit-area">
@@ -512,7 +601,6 @@
 
         const tabClientId = Math.random().toString(36).substring(2, 15);
 
-        // Public Holidays List
         const publicHolidays = {
             "2026-01-01": "បុណ្យចូលឆ្នាំសកល ២០២៦",
             "2026-01-07": "ទិវាជ័យជម្នះលើរបបប្រល័យពូជសាសន៍",
@@ -542,7 +630,6 @@
             "2027-04-15": "បុណ្យចូលឆ្នាំខ្មែរ ឆ្នាំមមែ"
         };
 
-        // -> PLACE YOUR BASE64 FONT STRING HERE <-
         const fontBase64 = ""; 
 
         const allowedEditors = [
@@ -556,6 +643,22 @@
 
         function isUserAllowedToEdit() {
             return allowedEditors.includes(currentUserEmail);
+        }
+
+        // Helper: Check if a case is an emergency
+        function isEmergencyCase(row) {
+            if (!row) return false;
+            const checkFields = [
+                row.remark, 
+                row.procedure, 
+                row.diagnosis, 
+                row.time, 
+                row.specialInstruments, 
+                row.status,
+                row.caseType || ''
+            ];
+            const pattern = /emergency|urgent|បន្ទាន់|សង្គ្រោះបន្ទាន់|urg/i;
+            return checkFields.some(field => field && pattern.test(String(field)));
         }
 
         function setDateToToday() {
@@ -702,7 +805,6 @@
             }
         });
 
-        // --- ANNOUNCEMENT & HOLIDAY LOGIC ---
         function updateAnnouncementBox() {
             const box = document.getElementById('announcementBox');
             const display = document.getElementById('announcementDisplay');
@@ -710,11 +812,9 @@
             const editBtn = document.getElementById('editAnnouncementBtn');
             const selectedDate = dateFilter.value;
             
-            // Only primary admin can edit announcements
             const isPrimaryAdmin = (currentUserEmail === "admin@gmail.com");
             editBtn.style.display = isPrimaryAdmin ? 'block' : 'none';
 
-            // Check if current date is a holiday
             const holidayName = publicHolidays[selectedDate];
             if (holidayName) {
                 holidayBanner.innerHTML = `🇰🇭 <strong>ថ្ងៃឈប់សម្រាកបុណ្យជាតិ~អន្តរជាតិ (Public Holiday):</strong> ${holidayName}`;
@@ -724,10 +824,8 @@
                 holidayBanner.innerHTML = '';
             }
 
-            // Custom announcement text
             display.textContent = currentAnnouncementText;
 
-            // Show box if holiday exists, custom announcement exists, or if primary admin is logged in
             if (holidayName || currentAnnouncementText.trim() !== "" || isPrimaryAdmin) {
                 box.style.display = "block";
             } else {
@@ -735,7 +833,6 @@
             }
         }
 
-        // Listen to Firestore for custom announcements
         db.collection("system").doc("announcement").onSnapshot((doc) => {
             currentAnnouncementText = doc.exists ? (doc.data().text || "") : "";
             document.getElementById('announcementInput').value = currentAnnouncementText;
@@ -786,7 +883,6 @@
             });
         }
 
-        // Helper function to check if a case is in the past
         function isCaseInPast(dateStr, timeStr) {
             if (!dateStr || !timeStr) return false;
             
@@ -815,7 +911,6 @@
             const row = scheduleData.find(r => r._id === rowId);
             if (!row) return;
 
-            // Primary admin or team-override admins can override any assignment
             const canOverrideTeam = (currentUserEmail === "admin@gmail.com" || currentUserEmail === "huotsocheat@gmail.com" || currentUserEmail === "daramao35@gmail.com");
             const isStaffUser = currentUserEmail === "staff@gmail.com";
             const currentDisplayName = document.getElementById('userDisplay').textContent;
@@ -928,10 +1023,57 @@
             });
         }
 
+        // Live stats updater:
+        // - Occupied Rooms counts ANY room in progress (including emergency cases)
+        // - Pending / Finished / Cancelled count ONLY scheduled cases
+        function updateLiveStats(allDateCases, scheduledOnlyCases) {
+            const occupiedRooms = new Set();
+            let pendingCount = 0;
+            let finishedCount = 0;
+            let cancelledCount = 0;
+
+            // Occupied room calculation considers ALL active cases (scheduled + emergency)
+            allDateCases.forEach(row => {
+                const s = (row.status || '').trim().toLowerCase();
+                if (s === 'in progress' && row.area) {
+                    occupiedRooms.add(row.area);
+                }
+            });
+
+            // Status counters strictly track scheduled cases
+            scheduledOnlyCases.forEach(row => {
+                const s = (row.status || '').trim().toLowerCase();
+                if (s === 'pending') {
+                    pendingCount++;
+                } else if (s === 'finished') {
+                    finishedCount++;
+                } else if (s === 'cancelled' || s === 'canceled') {
+                    cancelledCount++;
+                }
+            });
+
+            const statOccupied = document.getElementById('statOccupied');
+            const statPending = document.getElementById('statPending');
+            const statFinished = document.getElementById('statFinished');
+            const statCancelled = document.getElementById('statCancelled');
+
+            if (statOccupied) statOccupied.textContent = occupiedRooms.size;
+            if (statPending) statPending.textContent = pendingCount;
+            if (statFinished) statFinished.textContent = finishedCount;
+            if (statCancelled) statCancelled.textContent = cancelledCount;
+        }
+
         function renderTable(selectedDate) {
             tableBody.innerHTML = ''; 
             
-            const filteredData = scheduleData.filter(row => row.date === selectedDate);
+            // All cases for selected date (including emergency)
+            const allDateCases = scheduleData.filter(row => row.date === selectedDate);
+            
+            // Scheduled cases only (emergency cases excluded from board view)
+            const scheduledCases = allDateCases.filter(row => !isEmergencyCase(row));
+            
+            // Update live metrics
+            updateLiveStats(allDateCases, scheduledCases);
             
             const canOverrideTeam = (currentUserEmail === "admin@gmail.com" || currentUserEmail === "huotsocheat@gmail.com" || currentUserEmail === "daramao35@gmail.com");
             const isStaffUser = currentUserEmail === "staff@gmail.com";
@@ -942,7 +1084,7 @@
                 headerRow.innerHTML = `<td colspan="13" class="area-header">${area}</td>`;
                 tableBody.appendChild(headerRow);
 
-                let areaData = filteredData.filter(row => row.area === area);
+                let areaData = scheduledCases.filter(row => row.area === area);
 
                 if (areaData.length === 0) {
                     const emptyRow = document.createElement('tr');
@@ -964,6 +1106,8 @@
                             statusClass = 'status-finished';
                         } else if (statusVal === 'pending') {
                             statusClass = 'status-pending';
+                        } else if (statusVal === 'cancelled' || statusVal === 'canceled') {
+                            statusClass = 'status-cancelled';
                         } else if (statusVal === 'in progress') {
                             statusClass = 'status-in-progress';
                             statusHtml = `<span class="blinking-dot"></span>${row.status}`;
@@ -1053,7 +1197,8 @@
                 doc.setFontSize(11);
                 doc.text(`Date: ${dateStr}`, doc.internal.pageSize.getWidth() / 2, 80, { align: 'center' });
 
-                const filteredData = scheduleData.filter(row => row.date === dateStr);
+                // PDF exports only scheduled cases
+                const filteredData = scheduleData.filter(row => row.date === dateStr && !isEmergencyCase(row));
                 let tableRows = [];
 
                 areas.forEach(area => {
@@ -1114,7 +1259,8 @@
 
         function exportToCSV() {
             const dateStr = document.getElementById('dateFilter').value || 'schedule';
-            const filteredData = scheduleData.filter(row => row.date === dateStr);
+            // CSV exports only scheduled cases
+            const filteredData = scheduleData.filter(row => row.date === dateStr && !isEmergencyCase(row));
             
             let displayDate = dateStr;
             if (dateStr !== 'schedule' && dateStr.includes('-')) {
