@@ -38,7 +38,7 @@
             padding: 10px 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.04);
             margin: 15px auto 25px auto;
-            max-width: 780px;
+            max-width: 820px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -91,6 +91,22 @@
         .val-pending { color: #f39c12; }
         .val-finished { color: #27ae60; }
         .val-cancelled { color: #e74c3c; }
+
+        .room-toggle-btn {
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border: 1px solid #bdc3c7;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: inherit;
+            display: none;
+            margin-left: 4px;
+        }
+        .room-toggle-btn:hover {
+            background-color: #dcdde1;
+        }
 
         .controls {
             margin-bottom: 20px;
@@ -378,6 +394,53 @@
             margin-left: 8px;
         }
 
+        /* Modal for managing live room occupancy */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-card {
+            background: #fff;
+            padding: 22px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+        }
+        .modal-card h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .modal-subtitle {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 16px;
+        }
+        .room-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            font-size: 14px;
+        }
+        .close-modal-btn {
+            background-color: #34495e;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            float: right;
+            margin-top: 8px;
+        }
+
         /* Blinking light animation */
         @keyframes flashGreen {
             0% { opacity: 1; box-shadow: 0 0 8px #27ae60; }
@@ -455,6 +518,11 @@
                             }
                             userDisplay.textContent = displayName;
                         }
+
+                        const manageBtn = document.getElementById('manageRoomsBtn');
+                        if (manageBtn && isUserAllowedToEdit()) {
+                            manageBtn.style.display = 'inline-block';
+                        }
                         
                         if (typeof updateAnnouncementBox === 'function') {
                             updateAnnouncementBox();
@@ -524,6 +592,7 @@
                     <div class="stat-item">
                         <span class="stat-label">Occupied Rooms:</span>
                         <span id="statOccupied" class="stat-value val-occupied">0</span>
+                        <button id="manageRoomsBtn" class="room-toggle-btn" onclick="openRoomModal()" title="Manually set a room to In Progress without adding any row to the table">Set Room</button>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Pending Cases:</span>
@@ -587,6 +656,36 @@
         </div>
     </div>
 
+    <!-- Quick Modal to manage live room occupancy without adding cases to the table -->
+    <div id="roomModal" class="modal-overlay">
+        <div class="modal-card">
+            <h3>Live Room Status (No Case in Table)</h3>
+            <div class="modal-subtitle">Set room status directly without adding emergency records to the schedule table:</div>
+            <div class="room-row">
+                <span><strong>OTS1</strong></span>
+                <select id="modal_select_OTS1" onchange="setRoomLiveStatus('OTS1', this.value)">
+                    <option value="Available">Available (0)</option>
+                    <option value="In Progress">In Progress (Occupied)</option>
+                </select>
+            </div>
+            <div class="room-row">
+                <span><strong>OTS2</strong></span>
+                <select id="modal_select_OTS2" onchange="setRoomLiveStatus('OTS2', this.value)">
+                    <option value="Available">Available (0)</option>
+                    <option value="In Progress">In Progress (Occupied)</option>
+                </select>
+            </div>
+            <div class="room-row">
+                <span><strong>OTS3</strong></span>
+                <select id="modal_select_OTS3" onchange="setRoomLiveStatus('OTS3', this.value)">
+                    <option value="Available">Available (0)</option>
+                    <option value="In Progress">In Progress (Occupied)</option>
+                </select>
+            </div>
+            <button class="close-modal-btn" onclick="closeRoomModal()">Close</button>
+        </div>
+    </div>
+
     <script>
         const dateFilter = document.getElementById('dateFilter');
         const tableBody = document.getElementById('tableBody');
@@ -596,6 +695,7 @@
 
         let scheduleData = [];
         let currentAnnouncementText = "";
+        let firestoreOccupiedRooms = new Set();
         const areas = ['OTS1', 'OTS2', 'OTS3'];
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrk6OuH81kLg4H0CA8j2mXxvYk3C1Ag-nLO09VUvM0BteaU5spvNRDtzTpDtXYkzo/exec';
 
@@ -645,20 +745,29 @@
             return allowedEditors.includes(currentUserEmail);
         }
 
-        // Helper: Check if a case is an emergency
+        function normalizeArea(areaStr) {
+            if (!areaStr) return '';
+            const clean = String(areaStr).replace(/[\s_-]/g, '').toUpperCase();
+            if (clean.includes('OTS1')) return 'OTS1';
+            if (clean.includes('OTS2')) return 'OTS2';
+            if (clean.includes('OTS3')) return 'OTS3';
+            return clean;
+        }
+
+        // Emergency detection: Any case marked as emergency or urgent must NEVER be placed in the table
         function isEmergencyCase(row) {
             if (!row) return false;
             const checkFields = [
                 row.remark, 
                 row.procedure, 
                 row.diagnosis, 
-                row.time, 
-                row.specialInstruments, 
-                row.status,
-                row.caseType || ''
+                row.specialInstruments,
+                row.time,
+                row.caseType,
+                row.patientName
             ];
             const pattern = /emergency|urgent|បន្ទាន់|សង្គ្រោះបន្ទាន់|urg/i;
-            return checkFields.some(field => field && pattern.test(String(field)));
+            return checkFields.some(field => field && pattern.test(String(field).trim()));
         }
 
         function setDateToToday() {
@@ -673,7 +782,7 @@
 
         const formatDataDate = (raw) => {
             if (!raw) return '';
-            let s = String(raw);
+            let s = String(raw).trim();
             if (s.includes('T')) {
                 try {
                     let d = new Date(s);
@@ -691,6 +800,11 @@
                 } catch(e) {
                     return s.substring(0, 10);
                 }
+            }
+            if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(s)) {
+                const separator = s.includes('/') ? '/' : '-';
+                const [day, month, year] = s.split(separator);
+                return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             }
             return s.substring(0, 10);
         };
@@ -719,15 +833,18 @@
                     let rowDate = '';
                     let orTeam = '';
                     let selectedBy = ''; 
+                    let caseType = '';
 
                     if (Array.isArray(row)) {
                          rowDate = formatDataDate(row[1]);
                          orTeam = String(row[19] || ''); 
-                         selectedBy = String(row[20] || ''); 
+                         selectedBy = String(row[20] || '');
+                         caseType = String(row[9] || '');
                     } else {
                          rowDate = formatDataDate(row['Date'] || row['date']);
                          orTeam = String(row['OR Team'] || row['orTeam'] || row['or_team'] || row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || row['OR Nurse'] || row['orNurse'] || row['or_nurse'] || '');
                          selectedBy = String(row['Selected By'] || row['selectedBy'] || row['selected_by'] || '');
+                         caseType = String(row['Case Type'] || row['caseType'] || row['case_type'] || '');
                     }
 
                     if (orTeam === 'None') orTeam = '';
@@ -745,6 +862,7 @@
                             age: String(row[6] || ''),
                             sex: String(row[7] || ''),
                             roomBed: String(row[8] || ''),
+                            caseType: caseType,
                             diagnosis: String(row[10] || ''),
                             procedure: String(row[11] || ''),
                             surgeon: String(row[12] || ''),
@@ -767,6 +885,7 @@
                             age: String(row['Age'] || row['age'] || ''),
                             sex: String(row['Sex'] || row['sex'] || ''),
                             roomBed: String(row['Room/Bed'] || row['roomBed'] || row['room_bed'] || ''),
+                            caseType: caseType,
                             diagnosis: String(row['Diagnosis'] || row['diagnosis'] || ''),
                             procedure: String(row['Procedure'] || row['procedure'] || ''),
                             surgeon: String(row['Surgeon'] || row['surgeon'] || ''),
@@ -804,6 +923,48 @@
                 }
             }
         });
+
+        // Listen for direct room occupancy states from Firestore (No table rows needed)
+        db.collection("system").doc("or_rooms").onSnapshot((doc) => {
+            firestoreOccupiedRooms.clear();
+            if (doc.exists) {
+                const roomData = doc.data() || {};
+                Object.entries(roomData).forEach(([rm, st]) => {
+                    const normRm = normalizeArea(rm);
+                    const normSt = String(st || '').trim().toLowerCase().replace(/[\s_-]+/g, ' ');
+                    
+                    const selectEl = document.getElementById(`modal_select_${normRm}`);
+                    if (selectEl) {
+                        selectEl.value = (normSt === 'in progress') ? 'In Progress' : 'Available';
+                    }
+
+                    if (normSt === 'in progress') {
+                        firestoreOccupiedRooms.add(normRm);
+                    }
+                });
+            }
+            if (dateFilter && dateFilter.value) {
+                renderTable(dateFilter.value);
+            }
+        });
+
+        function setRoomLiveStatus(roomName, status) {
+            if (!isUserAllowedToEdit()) {
+                alert("Permission denied. Only authorized users can update room occupancy.");
+                return;
+            }
+            db.collection("system").doc("or_rooms").set({
+                [roomName]: status
+            }, { merge: true }).catch(err => console.error("Error setting room status:", err));
+        }
+
+        function openRoomModal() {
+            document.getElementById('roomModal').style.display = 'flex';
+        }
+
+        function closeRoomModal() {
+            document.getElementById('roomModal').style.display = 'none';
+        }
 
         function updateAnnouncementBox() {
             const box = document.getElementById('announcementBox');
@@ -1023,31 +1184,31 @@
             });
         }
 
-        // Live stats updater:
-        // - Occupied Rooms counts ANY room in progress (including emergency cases)
-        // - Pending / Finished / Cancelled count ONLY scheduled cases
+        // Live stats updater
         function updateLiveStats(allDateCases, scheduledOnlyCases) {
-            const occupiedRooms = new Set();
+            // Start with rooms set directly via Firestore modal/state
+            const occupiedRooms = new Set(firestoreOccupiedRooms);
             let pendingCount = 0;
             let finishedCount = 0;
             let cancelledCount = 0;
 
-            // Occupied room calculation considers ALL active cases (scheduled + emergency)
+            // Also count any case currently "In Progress" for occupied count
             allDateCases.forEach(row => {
-                const s = (row.status || '').trim().toLowerCase();
-                if (s === 'in progress' && row.area) {
-                    occupiedRooms.add(row.area);
+                const rawStatus = (row.status || '').toString().trim().toLowerCase().replace(/[\s_-]+/g, ' ');
+                if (rawStatus === 'in progress') {
+                    const cleanArea = normalizeArea(row.area);
+                    if (cleanArea) occupiedRooms.add(cleanArea);
                 }
             });
 
-            // Status counters strictly track scheduled cases
+            // Counters strictly track scheduled elective cases
             scheduledOnlyCases.forEach(row => {
-                const s = (row.status || '').trim().toLowerCase();
-                if (s === 'pending') {
+                const rawStatus = (row.status || '').toString().trim().toLowerCase().replace(/[\s_-]+/g, ' ');
+                if (rawStatus === 'pending') {
                     pendingCount++;
-                } else if (s === 'finished') {
+                } else if (rawStatus === 'finished') {
                     finishedCount++;
-                } else if (s === 'cancelled' || s === 'canceled') {
+                } else if (rawStatus === 'cancelled' || rawStatus === 'canceled') {
                     cancelledCount++;
                 }
             });
@@ -1066,10 +1227,10 @@
         function renderTable(selectedDate) {
             tableBody.innerHTML = ''; 
             
-            // All cases for selected date (including emergency)
+            // All cases matching the chosen date
             const allDateCases = scheduleData.filter(row => row.date === selectedDate);
             
-            // Scheduled cases only (emergency cases excluded from board view)
+            // ONLY regular scheduled cases are displayed in the table
             const scheduledCases = allDateCases.filter(row => !isEmergencyCase(row));
             
             // Update live metrics
@@ -1084,7 +1245,7 @@
                 headerRow.innerHTML = `<td colspan="13" class="area-header">${area}</td>`;
                 tableBody.appendChild(headerRow);
 
-                let areaData = scheduledCases.filter(row => row.area === area);
+                let areaData = scheduledCases.filter(row => normalizeArea(row.area) === area);
 
                 if (areaData.length === 0) {
                     const emptyRow = document.createElement('tr');
@@ -1100,7 +1261,7 @@
                         
                         let statusClass = '';
                         let statusHtml = row.status; 
-                        const statusVal = row.status.trim().toLowerCase();
+                        const statusVal = row.status.trim().toLowerCase().replace(/[\s_-]+/g, ' ');
 
                         if (statusVal === 'finished') {
                             statusClass = 'status-finished';
@@ -1202,7 +1363,7 @@
                 let tableRows = [];
 
                 areas.forEach(area => {
-                    let areaData = filteredData.filter(row => row.area === area);
+                    let areaData = filteredData.filter(row => normalizeArea(row.area) === area);
                     
                     tableRows.push([{ content: area, colSpan: 13, styles: { halign: 'center', fillColor: [189, 195, 199], textColor: [44, 62, 80], fontStyle: 'bold' } }]);
                     
@@ -1259,7 +1420,6 @@
 
         function exportToCSV() {
             const dateStr = document.getElementById('dateFilter').value || 'schedule';
-            // CSV exports only scheduled cases
             const filteredData = scheduleData.filter(row => row.date === dateStr && !isEmergencyCase(row));
             
             let displayDate = dateStr;
@@ -1278,7 +1438,7 @@
             csvContent += "Area,Time,Patient ID,Patient Name,Age,Sex,Room/Bed,Diagnosis,Procedure,Surgeon Team,OR Team\n";
 
             areas.forEach(area => {
-                let areaData = filteredData.filter(row => row.area === area);
+                let areaData = filteredData.filter(row => normalizeArea(row.area) === area);
                 
                 if (areaData.length > 0) {
                     areaData.sort((a, b) => a.time.localeCompare(b.time));
