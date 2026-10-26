@@ -845,6 +845,7 @@
                     let selectedBy = ''; 
                     let caseType = '';
                     let cleanRoomBed = '';
+                    let enteredBy = '';
 
                     if (Array.isArray(row)) {
                          rowDate = formatDataDate(row[1]);
@@ -852,12 +853,14 @@
                          selectedBy = String(row[20] || '');
                          caseType = String(row[9] || '');
                          cleanRoomBed = recoverRoomBed(row[8]); 
+                         enteredBy = String(row[17] || '');
                     } else {
                          rowDate = formatDataDate(row['Date'] || row['date'] || row['Scheduled Date'] || row['scheduled_date']);
                          orTeam = String(row['OR Team'] || row['orTeam'] || row['or_team'] || row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || row['OR Nurse'] || row['orNurse'] || row['or_nurse'] || '');
                          selectedBy = String(row['Selected By'] || row['selectedBy'] || row['selected_by'] || '');
                          caseType = String(row['Type of Surgery'] || row['type_of_surgery'] || row['Case Type'] || row['caseType'] || row['case_type'] || '');
                          cleanRoomBed = recoverRoomBed(row['Room/Bed'] || row['roomBed'] || row['room_bed'] || '');
+                         enteredBy = String(row['Entered By'] || row['enteredBy'] || row['entered_by'] || '');
                     }
 
                     if (orTeam === 'None') orTeam = '';
@@ -882,6 +885,7 @@
                             assistant: String(row[13] || ''),
                             specialInstruments: String(row[14] || ''),
                             remark: String(row[15] || ''),
+                            enteredBy: enteredBy,
                             orTeam: orTeam,
                             selectedBy: selectedBy,
                             status: String(row[18] || '')
@@ -905,6 +909,7 @@
                             assistant: String(row['Assistant'] || row['assistant'] || ''),
                             specialInstruments: String(row['Special Instruments'] || row['specialInstruments'] || row['special_instruments'] || ''),
                             remark: String(row['Remark'] || row['remark'] || ''),
+                            enteredBy: enteredBy,
                             orTeam: orTeam,
                             selectedBy: selectedBy,
                             status: String(row['Status'] || row['status'] || '')
@@ -1121,6 +1126,7 @@
                 assistant: row.assistant,
                 special_instruments: row.specialInstruments,
                 remark: row.remark,
+                entered_by: row.enteredBy,
                 anesthetic_team: row.orTeam === '' ? 'None' : row.orTeam,
                 or_nurse: row.orTeam === '' ? 'None' : row.orTeam,
                 or_team: row.orTeam === '' ? 'None' : row.orTeam,
