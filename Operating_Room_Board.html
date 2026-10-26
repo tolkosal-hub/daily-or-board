@@ -754,7 +754,7 @@
             return clean;
         }
 
-        // Emergency detection: Any case marked as emergency or urgent must NEVER be placed in the table
+        // Emergency detection: We removed row.caseType so standard Emergency Cases DO appear on the board
         function isEmergencyCase(row) {
             if (!row) return false;
             const checkFields = [
@@ -763,7 +763,6 @@
                 row.diagnosis, 
                 row.specialInstruments,
                 row.time,
-                row.caseType,
                 row.patientName
             ];
             const pattern = /emergency|urgent|បន្ទាន់|សង្គ្រោះបន្ទាន់|urg/i;
@@ -808,6 +807,21 @@
             }
             return s.substring(0, 10);
         };
+        
+        // --- BUILT-IN DATA FIXER FOR DATES ---
+        function recoverRoomBed(rawVal) {
+            let rbStr = String(rawVal || '').trim();
+            // Check if it's an actual Date object OR a long Javascript Date string
+            if (rawVal instanceof Date || rbStr.includes('GMT') || rbStr.includes('T00:00:00')) {
+                let d = new Date(rawVal);
+                if (!isNaN(d)) {
+                    // Google Sheets parses "1/2" (Room 1/Bed 2) as Jan 2nd (month/day or day/month). 
+                    // This extracts the exact numbers back out: Day/Month
+                    return d.getDate() + '/' + (d.getMonth() + 1);
+                }
+            }
+            return rbStr; // If it's normal text, leave it alone.
+        }
 
         function fetchSheetData(isSilent = false) {
             if (!isSilent) loadingIndicator.style.display = 'inline';
@@ -834,17 +848,20 @@
                     let orTeam = '';
                     let selectedBy = ''; 
                     let caseType = '';
+                    let cleanRoomBed = '';
 
                     if (Array.isArray(row)) {
                          rowDate = formatDataDate(row[1]);
                          orTeam = String(row[19] || ''); 
                          selectedBy = String(row[20] || '');
                          caseType = String(row[9] || '');
+                         cleanRoomBed = recoverRoomBed(row[8]); // Automatically repairs broken dates
                     } else {
                          rowDate = formatDataDate(row['Date'] || row['date'] || row['Scheduled Date'] || row['scheduled_date']);
                          orTeam = String(row['OR Team'] || row['orTeam'] || row['or_team'] || row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || row['OR Nurse'] || row['orNurse'] || row['or_nurse'] || '');
                          selectedBy = String(row['Selected By'] || row['selectedBy'] || row['selected_by'] || '');
                          caseType = String(row['Type of Surgery'] || row['type_of_surgery'] || row['Case Type'] || row['caseType'] || row['case_type'] || '');
+                         cleanRoomBed = recoverRoomBed(row['Room/Bed'] || row['roomBed'] || row['room_bed'] || '');
                     }
 
                     if (orTeam === 'None') orTeam = '';
@@ -861,7 +878,7 @@
                             patientName: String(row[5] || ''),
                             age: String(row[6] || ''),
                             sex: String(row[7] || ''),
-                            roomBed: String(row[8] || ''),
+                            roomBed: cleanRoomBed,
                             caseType: caseType,
                             diagnosis: String(row[10] || ''),
                             procedure: String(row[11] || ''),
@@ -884,7 +901,7 @@
                             patientName: String(row['Patient Name'] || row['patientName'] || row['patient_name'] || ''),
                             age: String(row['Age'] || row['age'] || ''),
                             sex: String(row['Sex'] || row['sex'] || ''),
-                            roomBed: String(row['Room/Bed'] || row['roomBed'] || row['room_bed'] || ''),
+                            roomBed: cleanRoomBed,
                             caseType: caseType,
                             diagnosis: String(row['Diagnosis'] || row['diagnosis'] || ''),
                             procedure: String(row['Procedure'] || row['procedure'] || ''),
@@ -1090,7 +1107,6 @@
             selectElement.disabled = true; 
             selectElement.style.cursor = 'wait';
 
-            // IMPORTANT FIX: Included type_of_surgery to ensure Google Script doesn't overwrite it
             const payload = {
                 __backendId: row.backendId,
                 date: row.date,
