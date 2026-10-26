@@ -697,7 +697,9 @@
         let currentAnnouncementText = "";
         let firestoreOccupiedRooms = new Set();
         const areas = ['OTS1', 'OTS2', 'OTS3'];
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrk6OuH81kLg4H0CA8j2mXxvYk3C1Ag-nLO09VUvM0BteaU5spvNRDtzTpDtXYkzo/exec';
+        
+        // NEW DEPLOYMENT URL UPDATED HERE
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyzgNCJOdW8m1eSzxu-3IWfLbMAZLuFT9OrVpDzr_DrjlNxGhFLraj2BY55luQHATk/exec';
 
         const tabClientId = Math.random().toString(36).substring(2, 15);
 
@@ -847,29 +849,6 @@
                     let enteredBy = '';
 
                     // Strictly mapping based on the exact Google Sheet column layout
-                    // 0: A (Backend ID)
-                    // 1: B (Scheduled Date)
-                    // 2: C (Area)
-                    // 3: D (Time)
-                    // 4: E (Patient ID)
-                    // 5: F (Patient Name)
-                    // 6: G (Age)
-                    // 7: H (Sex)
-                    // 8: I (Room/Bed)
-                    // 9: J (Type of Surgery)
-                    // 10: K (Diagnosis)
-                    // 11: L (Procedure)
-                    // 12: M (Surgeon)
-                    // 13: N (Assistant)
-                    // 14: O (Special Instruments)
-                    // 15: P (Remark)
-                    // 16: Q (Update Time)
-                    // 17: R (Entered By)
-                    // 18: S (Status)
-                    // 19: T (OR Team)
-                    // 20: U (Selected By)
-                    // 21: V (Selected At)
-
                     if (Array.isArray(row)) {
                          rowDate = formatDataDate(row[1]);
                          orTeam = String(row[19] || ''); 
@@ -1131,7 +1110,6 @@
             selectElement.disabled = true; 
             selectElement.style.cursor = 'wait';
 
-            // Payload structured strictly according to the new Google Sheet Column mapping
             const payload = {
                 __backendId: row.backendId,
                 date: row.date,
