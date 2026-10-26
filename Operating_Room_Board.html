@@ -770,6 +770,26 @@
             return checkFields.some(field => field && pattern.test(String(field).trim()));
         }
 
+        let announcementUnsubscribe = null;
+
+        function listenToAnnouncement(dateStr) {
+            if (announcementUnsubscribe) {
+                announcementUnsubscribe();
+            }
+            
+            currentAnnouncementText = "";
+            document.getElementById('announcementInput').value = "";
+            updateAnnouncementBox();
+            
+            if (!dateStr) return;
+
+            announcementUnsubscribe = db.collection("system").doc("announcement_" + dateStr).onSnapshot((doc) => {
+                currentAnnouncementText = doc.exists ? (doc.data().text || "") : "";
+                document.getElementById('announcementInput').value = currentAnnouncementText;
+                updateAnnouncementBox();
+            });
+        }
+
         function setDateToToday() {
             const localToday = new Date();
             const yyyy = localToday.getFullYear();
@@ -779,6 +799,7 @@
         }
         
         setDateToToday();
+        listenToAnnouncement(dateFilter.value);
 
         const formatDataDate = (raw) => {
             if (!raw) return '';
@@ -848,7 +869,6 @@
                     let cleanRoomBed = '';
                     let enteredBy = '';
 
-                    // Strictly mapping based on the exact Google Sheet column layout
                     if (Array.isArray(row)) {
                          rowDate = formatDataDate(row[1]);
                          orTeam = String(row[19] || ''); 
@@ -990,12 +1010,6 @@
             }
         }
 
-        db.collection("system").doc("announcement").onSnapshot((doc) => {
-            currentAnnouncementText = doc.exists ? (doc.data().text || "") : "";
-            document.getElementById('announcementInput').value = currentAnnouncementText;
-            updateAnnouncementBox();
-        });
-
         function toggleAnnouncementEdit() {
             const display = document.getElementById('announcementDisplay');
             const editArea = document.getElementById('announcementEditArea');
@@ -1021,11 +1035,12 @@
             const newText = document.getElementById('announcementInput').value;
             const btn = document.querySelector('.save-announcement-btn');
             const originalText = btn.textContent;
+            const selectedDate = document.getElementById('dateFilter').value;
             
             btn.textContent = 'Saving...';
             btn.disabled = true;
             
-            db.collection("system").doc("announcement").set({
+            db.collection("system").doc("announcement_" + selectedDate).set({
                 text: newText,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedBy: currentUserEmail
@@ -1466,7 +1481,7 @@
         }
 
         dateFilter.addEventListener('change', (e) => {
-            updateAnnouncementBox();
+            listenToAnnouncement(e.target.value);
             renderTable(e.target.value);
         });
 
