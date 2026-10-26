@@ -754,7 +754,6 @@
             return clean;
         }
 
-        // Emergency detection: caseType removed to keep standard emergencies on board
         function isEmergencyCase(row) {
             if (!row) return false;
             const checkFields = [
@@ -847,6 +846,30 @@
                     let cleanRoomBed = '';
                     let enteredBy = '';
 
+                    // Strictly mapping based on the exact Google Sheet column layout
+                    // 0: A (Backend ID)
+                    // 1: B (Scheduled Date)
+                    // 2: C (Area)
+                    // 3: D (Time)
+                    // 4: E (Patient ID)
+                    // 5: F (Patient Name)
+                    // 6: G (Age)
+                    // 7: H (Sex)
+                    // 8: I (Room/Bed)
+                    // 9: J (Type of Surgery)
+                    // 10: K (Diagnosis)
+                    // 11: L (Procedure)
+                    // 12: M (Surgeon)
+                    // 13: N (Assistant)
+                    // 14: O (Special Instruments)
+                    // 15: P (Remark)
+                    // 16: Q (Update Time)
+                    // 17: R (Entered By)
+                    // 18: S (Status)
+                    // 19: T (OR Team)
+                    // 20: U (Selected By)
+                    // 21: V (Selected At)
+
                     if (Array.isArray(row)) {
                          rowDate = formatDataDate(row[1]);
                          orTeam = String(row[19] || ''); 
@@ -886,9 +909,9 @@
                             specialInstruments: String(row[14] || ''),
                             remark: String(row[15] || ''),
                             enteredBy: enteredBy,
+                            status: String(row[18] || ''),
                             orTeam: orTeam,
-                            selectedBy: selectedBy,
-                            status: String(row[18] || '')
+                            selectedBy: selectedBy
                          };
                     } else {
                          return {
@@ -910,9 +933,9 @@
                             specialInstruments: String(row['Special Instruments'] || row['specialInstruments'] || row['special_instruments'] || ''),
                             remark: String(row['Remark'] || row['remark'] || ''),
                             enteredBy: enteredBy,
+                            status: String(row['Status'] || row['status'] || ''),
                             orTeam: orTeam,
-                            selectedBy: selectedBy,
-                            status: String(row['Status'] || row['status'] || '')
+                            selectedBy: selectedBy
                         };
                     }
                 });
@@ -1108,7 +1131,7 @@
             selectElement.disabled = true; 
             selectElement.style.cursor = 'wait';
 
-            // Correctly mapped payload explicitly setting columns exactly where they belong
+            // Payload structured strictly according to the new Google Sheet Column mapping
             const payload = {
                 __backendId: row.backendId,
                 date: row.date,
@@ -1127,10 +1150,8 @@
                 special_instruments: row.specialInstruments,
                 remark: row.remark,
                 entered_by: row.enteredBy,
-                anesthetic_team: row.orTeam === '' ? 'None' : row.orTeam,
-                or_nurse: row.orTeam === '' ? 'None' : row.orTeam,
-                or_team: row.orTeam === '' ? 'None' : row.orTeam,
                 status: row.status,
+                or_team: row.orTeam === '' ? 'None' : row.orTeam,
                 selected_by: currentDisplayName
             };
 
