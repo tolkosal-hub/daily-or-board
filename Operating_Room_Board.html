@@ -841,10 +841,10 @@
                          selectedBy = String(row[20] || '');
                          caseType = String(row[9] || '');
                     } else {
-                         rowDate = formatDataDate(row['Date'] || row['date']);
+                         rowDate = formatDataDate(row['Date'] || row['date'] || row['Scheduled Date'] || row['scheduled_date']);
                          orTeam = String(row['OR Team'] || row['orTeam'] || row['or_team'] || row['Anesthetic Team'] || row['anestheticTeam'] || row['anesthetic_team'] || row['OR Nurse'] || row['orNurse'] || row['or_nurse'] || '');
                          selectedBy = String(row['Selected By'] || row['selectedBy'] || row['selected_by'] || '');
-                         caseType = String(row['Case Type'] || row['caseType'] || row['case_type'] || '');
+                         caseType = String(row['Type of Surgery'] || row['type_of_surgery'] || row['Case Type'] || row['caseType'] || row['case_type'] || '');
                     }
 
                     if (orTeam === 'None') orTeam = '';
@@ -921,30 +921,6 @@
                 } else {
                     initialLoadComplete = true;
                 }
-            }
-        });
-
-        // Listen for direct room occupancy states from Firestore (No table rows needed)
-        db.collection("system").doc("or_rooms").onSnapshot((doc) => {
-            firestoreOccupiedRooms.clear();
-            if (doc.exists) {
-                const roomData = doc.data() || {};
-                Object.entries(roomData).forEach(([rm, st]) => {
-                    const normRm = normalizeArea(rm);
-                    const normSt = String(st || '').trim().toLowerCase().replace(/[\s_-]+/g, ' ');
-                    
-                    const selectEl = document.getElementById(`modal_select_${normRm}`);
-                    if (selectEl) {
-                        selectEl.value = (normSt === 'in progress') ? 'In Progress' : 'Available';
-                    }
-
-                    if (normSt === 'in progress') {
-                        firestoreOccupiedRooms.add(normRm);
-                    }
-                });
-            }
-            if (dateFilter && dateFilter.value) {
-                renderTable(dateFilter.value);
             }
         });
 
@@ -1114,6 +1090,7 @@
             selectElement.disabled = true; 
             selectElement.style.cursor = 'wait';
 
+            // IMPORTANT FIX: Included type_of_surgery to ensure Google Script doesn't overwrite it
             const payload = {
                 __backendId: row.backendId,
                 date: row.date,
@@ -1124,6 +1101,7 @@
                 age: row.age,
                 sex: row.sex,
                 room_bed: row.roomBed,
+                type_of_surgery: row.caseType, 
                 diagnosis: row.diagnosis,
                 procedure: row.procedure,
                 surgeon: row.surgeon,
@@ -1184,15 +1162,12 @@
             });
         }
 
-        // Live stats updater
         function updateLiveStats(allDateCases, scheduledOnlyCases) {
-            // Start with rooms set directly via Firestore modal/state
             const occupiedRooms = new Set(firestoreOccupiedRooms);
             let pendingCount = 0;
             let finishedCount = 0;
             let cancelledCount = 0;
 
-            // Also count any case currently "In Progress" for occupied count
             allDateCases.forEach(row => {
                 const rawStatus = (row.status || '').toString().trim().toLowerCase().replace(/[\s_-]+/g, ' ');
                 if (rawStatus === 'in progress') {
@@ -1201,7 +1176,6 @@
                 }
             });
 
-            // Counters strictly track scheduled elective cases
             scheduledOnlyCases.forEach(row => {
                 const rawStatus = (row.status || '').toString().trim().toLowerCase().replace(/[\s_-]+/g, ' ');
                 if (rawStatus === 'pending') {
@@ -1227,13 +1201,8 @@
         function renderTable(selectedDate) {
             tableBody.innerHTML = ''; 
             
-            // All cases matching the chosen date
             const allDateCases = scheduleData.filter(row => row.date === selectedDate);
-            
-            // ONLY regular scheduled cases are displayed in the table
             const scheduledCases = allDateCases.filter(row => !isEmergencyCase(row));
-            
-            // Update live metrics
             updateLiveStats(allDateCases, scheduledCases);
             
             const canOverrideTeam = (currentUserEmail === "admin@gmail.com" || currentUserEmail === "huotsocheat@gmail.com" || currentUserEmail === "daramao35@gmail.com");
@@ -1358,7 +1327,6 @@
                 doc.setFontSize(11);
                 doc.text(`Date: ${dateStr}`, doc.internal.pageSize.getWidth() / 2, 80, { align: 'center' });
 
-                // PDF exports only scheduled cases
                 const filteredData = scheduleData.filter(row => row.date === dateStr && !isEmergencyCase(row));
                 let tableRows = [];
 
